@@ -1,25 +1,32 @@
 // Which cloud worker-agent model to use, and what to do when its provider fails. The ranking comes from MEASURED runs (the P3.48-P3.52 SIMULATE experiments:
-// verified-fix rate, median time and tokens per task) and the ESTIMATED prices in cloud-models.ts; it never claims a number it does not have. Failover only
+// verified-fix rate; median cost, time and tokens per task, with the cost basis stated: xAI's billed cost, a price list, or an estimate); it never claims a number it does not have. Failover only
 // happens when the provider failed before the run did anything (no completed model call, no tool call), so a retry can never repeat a side effect.
 import { runToolAgent, type AgentHooks, type AgentRunResult } from './agent.ts';
-import { MODEL_PRICING, configuredCloudModels, costUsd } from './cloud-models.ts';
+import { configuredCloudModels } from './cloud-models.ts';
 
 export interface CloudMeasurement {
   model: string;
-  /** Tasks run and verified (a fix the sandbox verified AND an independent test confirmed). */
+  /** Tasks run and verified (a fix the sandbox verified AND an independent test confirmed), pooled over `sources`. */
   tasks: number;
   success: number;
+  /** Median cost, time and tokens of one task from the P3.57 runs only (`cost_sources`): the run after cost accounting was fixed (reasoning tokens counted, the provider's billed cost used). */
+  median_usd: number;
   median_ms: number;
   median_tokens: number;
-  /** The evidence files the numbers come from (a test recomputes them). */
+  /** Where the dollar figure comes from, stated so no estimate passes for a measurement. */
+  cost_basis: 'provider-billed' | 'tokens at the provider price list' | 'tokens at an estimated price';
   sources: string[];
+  cost_sources: string[];
 }
 
-/** Pooled easy (15) + hard (24) SIMULATE rows per model. deepseek-flash was run under its alias deepseek-chat. */
+const P357 = (m: string): string[] => [`docs/evidence/p3.57-cost-per-task/${m}-easy-results.json`, `docs/evidence/p3.57-cost-per-task/${m}-hard-results.json`];
+/** Pooled easy + hard SIMULATE rows per model (66 each); deepseek-flash was run under its alias deepseek-chat in the earlier runs. */
 export const CLOUD_MEASUREMENTS: CloudMeasurement[] = [
-  { model: 'mercury-2', tasks: 39, success: 39, median_ms: 2604, median_tokens: 6748, sources: ['docs/evidence/p3.48-local-simulate/run1-results.json', 'docs/evidence/p3.50-hard-tasks/run1-results.json'] },
-  { model: 'deepseek-flash', tasks: 39, success: 39, median_ms: 5557, median_tokens: 7897, sources: ['docs/evidence/p3.49-local-patch-interface/run2-deepseek-results.json', 'docs/evidence/p3.50-hard-tasks/run1-results.json'] },
-  { model: 'grok-4.3', tasks: 39, success: 37, median_ms: 6638, median_tokens: 7113, sources: ['docs/evidence/p3.52-xai/easy-results.json', 'docs/evidence/p3.52-xai/hard-results.json'] },
+  { model: 'mercury-2', tasks: 66, success: 64, median_usd: 0.002052, median_ms: 2553, median_tokens: 6654, cost_basis: 'tokens at the provider price list', sources: ['docs/evidence/p3.48-local-simulate/run1-results.json', 'docs/evidence/p3.50-hard-tasks/run1-results.json', ...P357('mercury-2')], cost_sources: P357('mercury-2') },
+  { model: 'deepseek-flash', tasks: 66, success: 66, median_usd: 0.002758, median_ms: 5353, median_tokens: 7989, cost_basis: 'tokens at an estimated price', sources: ['docs/evidence/p3.49-local-patch-interface/run2-deepseek-results.json', 'docs/evidence/p3.50-hard-tasks/run1-results.json', ...P357('deepseek-flash')], cost_sources: P357('deepseek-flash') },
+  { model: 'grok-4.3', tasks: 66, success: 63, median_usd: 0.006427, median_ms: 6168, median_tokens: 7339, cost_basis: 'provider-billed', sources: ['docs/evidence/p3.52-xai/easy-results.json', 'docs/evidence/p3.52-xai/hard-results.json', ...P357('grok-4.3')], cost_sources: P357('grok-4.3') },
+  { model: 'grok-4.7', tasks: 66, success: 63, median_usd: 0.012654, median_ms: 5948, median_tokens: 11943, cost_basis: 'provider-billed', sources: ['docs/evidence/p3.55-xai-models/grok-4.7-easy-results.json', 'docs/evidence/p3.55-xai-models/grok-4.7-hard-results.json', ...P357('grok-4.7')], cost_sources: P357('grok-4.7') },
+  { model: 'grok-build-0.1', tasks: 66, success: 64, median_usd: 0.005978, median_ms: 9496, median_tokens: 9675, cost_basis: 'provider-billed', sources: ['docs/evidence/p3.55-xai-models/grok-build-0.1-easy-results.json', 'docs/evidence/p3.55-xai-models/grok-build-0.1-hard-results.json', ...P357('grok-build-0.1')], cost_sources: P357('grok-build-0.1') },
 ];
 /** The evidence names deepseek-flash as the alias the experiment used. */
 export const MEASUREMENT_ALIASES: Record<string, string> = { 'deepseek-chat': 'deepseek-flash' };
@@ -27,15 +34,9 @@ export const MEASUREMENT_ALIASES: Record<string, string> = { 'deepseek-chat': 'd
 /** A model is eligible when it was measured on enough tasks with a high verified rate. */
 export const MIN_TASKS = 20;
 export const MIN_RATE = 0.9;
-/** An agent loop is prompt-heavy: the price blend assumes this share of the tokens are input tokens (the rest output). An assumption, stated. */
-export const INPUT_SHARE = 0.85;
 
-/** Estimated USD for one median task on a model: median tokens at the blended ESTIMATED price, or null when the model has no price. */
-export function estCostPerTask(m: CloudMeasurement): number | null {
-  const price = MODEL_PRICING[m.model];
-  if (!price) return null;
-  return costUsd(m.model, m.median_tokens * INPUT_SHARE, m.median_tokens * (1 - INPUT_SHARE));
-}
+/** The measured cost of one median task, in USD. */
+export const estCostPerTask = (m: CloudMeasurement): number => m.median_usd;
 
 export interface Ranked { model: string; reason: string }
 
@@ -47,13 +48,13 @@ const usd = (n: number): string => `$${n.toFixed(4)}`;
  */
 export function rankCloudModels(configured: string[], table: CloudMeasurement[] = CLOUD_MEASUREMENTS): Ranked[] {
   const rows = configured.map((model, i) => ({ model, i, m: table.find((t) => t.model === model) }));
-  const eligible = rows.filter((r) => r.m && r.m.tasks >= MIN_TASKS && r.m.success / r.m.tasks >= MIN_RATE && estCostPerTask(r.m) !== null)
-    .sort((a, b) => estCostPerTask(a.m!)! - estCostPerTask(b.m!)! || a.m!.median_ms - b.m!.median_ms);
+  const eligible = rows.filter((r) => r.m && r.m.tasks >= MIN_TASKS && r.m.success / r.m.tasks >= MIN_RATE)
+    .sort((a, b) => estCostPerTask(a.m!) - estCostPerTask(b.m!) || a.m!.median_ms - b.m!.median_ms);
   const measured = rows.filter((r) => r.m && !eligible.includes(r));
   const unmeasured = rows.filter((r) => !r.m);
   return [
-    ...eligible.map((r) => ({ model: r.model, reason: `${r.m!.success}/${r.m!.tasks} verified fixes, median ${(r.m!.median_ms / 1000).toFixed(1)} s, about ${usd(estCostPerTask(r.m!)!)} per task (estimated price)` })),
-    ...measured.map((r) => ({ model: r.model, reason: `measured ${r.m!.success}/${r.m!.tasks}, which is below the ${MIN_RATE * 100}% over ${MIN_TASKS} tasks rule or has no price, so it is tried after the qualified models` })),
+    ...eligible.map((r) => ({ model: r.model, reason: `${r.m!.success}/${r.m!.tasks} verified fixes, median ${(r.m!.median_ms / 1000).toFixed(1)} s, about ${usd(estCostPerTask(r.m!))} per task (${r.m!.cost_basis})` })),
+    ...measured.map((r) => ({ model: r.model, reason: `measured ${r.m!.success}/${r.m!.tasks}, which is below the ${MIN_RATE * 100}% over ${MIN_TASKS} tasks rule, so it is tried after the qualified models` })),
     ...unmeasured.map((r) => ({ model: r.model, reason: 'never measured on SIMULATE tasks, so it is tried last' })),
   ];
 }
