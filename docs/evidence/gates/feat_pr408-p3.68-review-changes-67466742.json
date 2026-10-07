@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T17:35:42.726Z",
+  "head": "67466742",
+  "base": "gh/main",
+  "base_sha": "5380bffc",
+  "branch": "feat/pr408-p3.68-review-changes",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1487
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1721
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1505
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1496 passed, 0 failed; lines 92.73% (floor 90%)",
+      "ms": 68741
+    },
+    {
+      "step": "codeql-js",
+      "status": "fail",
+      "detail": "29 alerts here, 28 on base, 1 new: js/path-injection apps/web/repo-changes.ts:59",
+      "ms": 611461
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 295551
+    }
+  ],
+  "verdict": "FAIL"
+}

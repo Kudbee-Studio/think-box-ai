@@ -703,6 +703,7 @@ async function refreshFiles() {
   const tree = document.getElementById('file-tree');
   await loadAgentRepo();
   renderGitRepositories(data.files);
+  loadRepoChanges();
   // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
   const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
   tree.innerHTML = visibleFiles.length
@@ -1384,6 +1385,45 @@ function renderGitRepositories(files) {
 }
 
 /** The repository the agent works on (chosen per profile on the server). */
+const CHANGE_LABEL = { modified: 'changed', added: 'new', untracked: 'new', deleted: 'deleted', renamed: 'renamed' };
+
+/** What the agent changed in the chosen repository, with a diff and undo per file. */
+async function loadRepoChanges() {
+  const box = document.getElementById('repo-changes');
+  if (!box) return;
+  let data = { repo: null, files: [] };
+  try { const r = await fetch('/api/repo/changes', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch { /* optional panel */ }
+  if (!data.repo || !data.files.length) { box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  box.innerHTML = `<div class="repo-changes-head"><strong>Changes in ${escapeHtml(data.repo)} (${data.files.length}${data.truncated ? '+' : ''})</strong><button type="button" data-change-undo-all>Undo all</button></div>`
+    + data.files.map(file => `<div class="repo-change" data-change-path="${escapeHtml(file.path)}"><span class="change-kind kind-${escapeHtml(file.status)}">${escapeHtml(CHANGE_LABEL[file.status] || file.status)}</span><span class="change-path" title="${escapeHtml(file.path)}">${escapeHtml(file.path)}</span><button type="button" data-change-diff>diff</button><button type="button" data-change-undo>undo</button></div>`).join('');
+}
+
+async function toggleChangeDiff(row) {
+  const open = row.nextElementSibling;
+  if (open && open.classList.contains('change-diff')) { open.remove(); return; }
+  const response = await fetch(`/api/repo/changes/diff?path=${encodeURIComponent(row.dataset.changePath)}`, { cache: 'no-store' });
+  const data = await response.json().catch(() => ({}));
+  const pre = document.createElement('pre'); pre.className = 'change-diff';
+  const text = response.ok ? (data.diff || '(no text changes)') + (data.truncated ? '\n…[diff cut]' : '') : (data.error || 'Could not load the diff');
+  for (const line of text.split('\n')) {
+    const span = document.createElement('span'); span.textContent = `${line}\n`;
+    if (line.startsWith('+') && !line.startsWith('+++')) span.className = 'diff-add'; else if (line.startsWith('-') && !line.startsWith('---')) span.className = 'diff-del';
+    pre.append(span);
+  }
+  row.after(pre);
+}
+
+async function undoChange(path) {
+  const what = path ? `Undo the changes to ${path}?` : 'Undo every change in this repository? New files the agent made will be deleted.';
+  if (!window.confirm(what)) return;
+  const response = await fetch('/api/repo/changes/undo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(path ? { path } : {}) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) appendTerminalMessage('error', `Could not undo: ${result.error || response.statusText}`);
+  else appendTerminalMessage('system', `Undid ${result.restored} change${result.restored === 1 ? '' : 's'}.`);
+  refreshFiles();
+}
+
 async function loadAgentRepo() {
   try {
     const response = await fetch('/api/repo/active', { cache: 'no-store' });
@@ -2021,6 +2061,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (button) sendGitAction(button.dataset.gitAction, { path: button.dataset.gitPath });
     const use = event.target.closest('[data-use-repo]');
     if (use) chooseAgentRepo(use.dataset.useRepo);
+  });
+  document.getElementById('repo-changes').addEventListener('click', event => {
+    const row = event.target.closest('.repo-change');
+    if (event.target.closest('[data-change-undo-all]')) undoChange('');
+    else if (row && event.target.closest('[data-change-diff]')) toggleChangeDiff(row);
+    else if (row && event.target.closest('[data-change-undo]')) undoChange(row.dataset.changePath);
   });
   document.getElementById('file-tree').addEventListener('click', event => {
     const file = event.target.closest('.file-tree-item');

@@ -34,6 +34,7 @@ import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCl
 import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
 import { createWorkspaceResolver } from './workspace-resolver.ts';
 import { ActiveRepoManager, repoFilePath } from './active-repo.ts';
+import { registerRepoChangesRoutes } from './routes/repo-changes.ts';
 import { registerActiveRepoRoutes } from './routes/active-repo.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
@@ -2229,6 +2230,7 @@ registerConvoyRoutes(app, {
   isHuman: isHumanReq,
 });
 registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
+registerRepoChangesRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {
