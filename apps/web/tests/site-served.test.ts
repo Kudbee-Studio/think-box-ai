@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { CLOUD_MEASUREMENTS } from '../cloud-routing.ts';
 import { freePort } from './helpers/free-port.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -28,6 +29,18 @@ test('the site has no inline executable script, so the dashboard CSP (script-src
   assert.ok(tags.length >= 5, 'found the script tags');
   for (const attrs of tags) assert.ok(attrs.includes('src=') || attrs.includes('type="application/ld+json"') || attrs.includes('type="application/json"'), `script tag is external or a data block: <script${attrs}>`);
   for (const handler of [' onclick=', ' onload=', ' onerror=', ' onchange=', ' onsubmit=']) assert.ok(!html.toLowerCase().includes(handler), `no inline handler ${handler.trim()}`);
+});
+
+test('the measured-models table on the site equals the routing table (which a test recomputes from the evidence files)', () => {
+  const names: Record<string, string> = { 'Mercury 2': 'mercury-2', 'DeepSeek (flash)': 'deepseek-flash', 'xAI Grok Build 0.1': 'grok-build-0.1', 'xAI Grok 4.3': 'grok-4.3', 'xAI Grok 4.7': 'grok-4.7' };
+  const basis: Record<string, string> = { 'provider-billed': 'provider-billed', 'tokens at the provider price list': 'price list', 'tokens at an estimated price': 'estimated price' };
+  const rows = [...html.matchAll(/<tr><th scope="row">([^<]+)<\/th><td>(\d+) of (\d+)<\/td><td>\$([\d.]+)<\/td><td>([\d.]+) s<\/td><td>([^<]+)<\/td><\/tr>/g)];
+  assert.equal(rows.length, CLOUD_MEASUREMENTS.length);
+  for (const [, label, ok, n, usd, secs, how] of rows) {
+    const m = CLOUD_MEASUREMENTS.find((x) => x.model === names[label!])!;
+    assert.ok(m, `${label} is a measured model`);
+    assert.deepEqual([Number(ok), Number(n), Number(usd), Number(secs), how], [m.success, m.tasks, Number(m.median_usd.toFixed(4)), Number((m.median_ms / 1000).toFixed(1)), basis[m.cost_basis]], label);
+  }
 });
 
 let server: ChildProcess; let base = ''; let tmp = '';

@@ -698,3 +698,10 @@ h1,h2,.h-xl,.h-lg,.hero__title{font-family:var(--font);letter-spacing:-.045em}
 .explode__list button[aria-pressed="true"]{color:var(--ink);border-color:color-mix(in srgb,var(--acc1) 60%,transparent);background:color-mix(in srgb,var(--acc1) 14%,transparent)}
 @media (min-width:1200px){.cube-ctrl{right:60px}}
 [data-theme="light"] .kicker{color:color-mix(in srgb,var(--c) 60%,#000)}
+
+/* Measured models table */
+.measured-table{width:100%;border-collapse:collapse;font-size:.95rem;font-variant-numeric:tabular-nums}
+.measured-table th,.measured-table td{padding:.7rem .9rem;text-align:left;border-bottom:1px solid var(--line,rgba(127,127,127,.25));white-space:nowrap}
+.measured-table thead th{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted,#8a93a6)}
+.measured-table tbody th{font-weight:600}
+.measured-table tbody tr:last-child th,.measured-table tbody tr:last-child td{border-bottom:0}

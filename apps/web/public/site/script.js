@@ -603,7 +603,7 @@
 
   /* ---------- Changelog (real merged PRs, static snapshot) ---------- */
   var PRS = JSON.parse($('#pr-data').textContent);
-  function typeOf(t) { var m = /^(feat|fix|docs)\b/i.exec(t); return m ? m[1].toLowerCase() : 'other'; }
+  function typeOf(t) { var m = /^(feat|fix|docs)\b/i.exec(t); if (m) return m[1].toLowerCase(); if (/\bfix(es|ed)?\b/i.test(t)) return 'fix'; if (/\bdocs?\b/i.test(t)) return 'docs'; return /^P\d/.test(t) ? 'feat' : 'other'; }
   var clList = $('#changelog-list'), clMore = $('#cl-more'), clFilter = 'all', clAll = false, CL_FIRST = 18;
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function fmtDay(d) { var p = d.split('-'); var dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)); return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); }
@@ -625,7 +625,7 @@
     b.addEventListener('click', function () { clFilter = b.getAttribute('data-f'); $$('#cl-filters button').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); }); renderCL(); });
   });
   clMore.addEventListener('click', function () { clAll = !clAll; renderCL(); });
-  $('#cl-src').textContent = 'Snapshot: ' + PRS.length + ' merged PRs out of the 60 most recently updated closed PRs, read on Oct 1, 2026 via the GitHub API (read-only). Dates are merge dates in Central Time. Older history is not shown.';
+  $('#cl-src').textContent = 'Snapshot: ' + PRS.length + ' most recently merged PRs, read on Oct 7, 2026 via the GitHub API (read-only). Dates are merge dates in Central Time. Older history is not shown.';
   renderCL();
 
   /* ---------- ADR library ---------- */
