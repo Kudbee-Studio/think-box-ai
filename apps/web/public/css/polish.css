@@ -40,7 +40,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* These had a max-height but no overflow rule, so content spilled out (or was clipped, for .file-editor) */
 .search-container, .automations-list, .file-editor { overflow-y: auto; }
 
-/* ─── Header: fits the viewport; the toolbar scrolls inside itself if it must ─── */
+/* ─── Header: one row that fits the viewport. The 14 tool icons live in the labeled Tools menu, so the toolbar is short and never needs to scroll ─── */
 .header { gap: var(--spacing-lg); padding: var(--spacing-md) var(--spacing-xl); min-width: 0; }
 .header-left { min-width: auto; flex-shrink: 0; }
 .header-center { min-width: 0; gap: var(--spacing-sm); flex: 1 1 auto; justify-content: flex-start; }
@@ -49,32 +49,41 @@ html, body { max-width: 100%; overflow-x: hidden; }
   min-width: 0; width: 100%; max-width: 210px; text-overflow: ellipsis; padding: 6px 10px;
 }
 .agent-selector select { max-width: 150px; }
-.header-right {
-  /* flex-start + auto margin: when the toolbar overflows, it scrolls from its first button instead of
-     clipping it (flex-end overflow is unreachable). */
-  min-width: 0; flex: 0 1 auto; margin-left: auto; justify-content: flex-start;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; padding: 2px;
-}
-.header-right::-webkit-scrollbar { display: none; }
+.header-right { min-width: 0; flex: 0 0 auto; margin-left: auto; justify-content: flex-end; overflow: visible; gap: 6px; position: relative; }
 .header-right > * { flex-shrink: 0; }
-.header-right { gap: 4px; }
 .header-right .btn-icon { width: 30px; height: 30px; padding: 0; border-radius: 7px; }
 .btn-icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .header-right .btn-secondary { padding: 7px 12px; white-space: nowrap; }
+.tool-label { display: none; }
+
+/* The Tools menu: a dropdown panel of labeled tools (icon + name), two columns */
+.tools-menu { position: relative; }
+.tools-menu > summary { list-style: none; cursor: pointer; user-select: none; }
+.tools-menu > summary::-webkit-details-marker { display: none; }
+.tools-menu > summary::after { content: ' \25BE'; opacity: 0.7; }
+.tools-menu[open] > summary { border-color: var(--accent-primary); }
+.tools-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 1000; width: 430px; max-width: calc(100vw - 24px);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px;
+  background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 10px; box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.5));
+}
+.tools-panel .btn-icon { width: auto; height: 36px; padding: 0 10px; justify-content: flex-start; gap: 8px; display: inline-flex; align-items: center; text-align: left; }
+.tools-panel .tool-label { display: inline; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 @media (max-width: 1599px) {
   .model-selector label, .agent-selector label { display: none; }
 }
-/* Below ~1680px the toolbar (15 icon buttons, Think Tokens, status, Clear) cannot share a row with the pickers:
-   it gets its own row rather than hiding buttons behind an invisible scrollbar */
-@media (max-width: 1679px) {
+/* Below ~1500px the toolbar takes its own row under the pickers rather than squeezing them */
+@media (max-width: 1499px) {
   .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
-  .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; overflow: visible; }
+  .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
 }
 /* main-pro.css hides .header-center below 1024px, which left tablets and phones with no model or agent picker */
 @media (max-width: 1023px) {
   .header-center { display: flex; order: 2; flex: 1 1 280px; flex-wrap: wrap; }
   .model-selector, .agent-selector { flex: 1 1 160px; }
   .model-selector select, .agent-selector select { max-width: none; }
+  .tools-panel { left: 0; right: auto; }
 }
 
 /* ─── Filter pills (Thoughts and Memory) ─── */
