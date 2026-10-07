@@ -63,7 +63,7 @@ let ollama: http.Server; let data = ''; let tmp = '';
 const start = async (): Promise<{ base: string; stop: () => Promise<void> }> => {
   const port = await freePort();
   const server: ChildProcess = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], { cwd: appDir, stdio: 'ignore',
-    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: `http://127.0.0.1:${(ollama.address() as { port: number }).port}`, JANUS_BASE_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'none', THINKBOX_EMBEDDINGS: 'off', KUDBEE_DATA_DIR: data, KUDBEE_LEARNING_DB: path.join(tmp, 'l.db'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_LOCAL_MODEL: 'smollm2:360m' } });
+    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', DEEPSEEK_API_KEY: '', XAI_API_KEY: '', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: `http://127.0.0.1:${(ollama.address() as { port: number }).port}`, JANUS_BASE_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'none', THINKBOX_EMBEDDINGS: 'off', KUDBEE_DATA_DIR: data, KUDBEE_LEARNING_DB: path.join(tmp, 'l.db'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_LOCAL_MODEL: 'smollm2:360m' } });
   const base = `http://127.0.0.1:${port}`;
   for (let i = 0; i < 100; i++) { try { if ((await fetch(`${base}/api/health`)).ok) break; } catch { /* starting */ } await new Promise((r) => setTimeout(r, 150)); }
   return { base, stop: () => new Promise((r) => { server.once('exit', () => r()); server.kill(); }) };

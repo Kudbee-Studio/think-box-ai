@@ -43,7 +43,7 @@ before(async () => {
   base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir,
-    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', OLLAMA_BASE_URL: ollamaUrl, JANUS_BASE_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'none',
+    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', DEEPSEEK_API_KEY: '', XAI_API_KEY: '', OLLAMA_BASE_URL: ollamaUrl, JANUS_BASE_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'none',
       KUDBEE_DAILY_BUDGET_USD: '0', KUDBEE_DATA_DIR: path.join(tmp, 'data'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_EMBEDDINGS: 'off', THINKBOX_LOCAL_MODEL: MODEL },
     stdio: 'ignore',
   });

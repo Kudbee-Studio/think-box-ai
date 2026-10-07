@@ -39,7 +39,7 @@ before(async () => {
   const port = await freePort(); base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, ['--experimental-strip-types', '--no-warnings', 'server.ts'], {
     cwd: appDir, stdio: 'ignore',
-    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: `http://127.0.0.1:${(ollama.address() as { port: number }).port}`, KUDBEE_GITHUB_API: `http://127.0.0.1:${(github.address() as { port: number }).port}`, KUDBEE_REPO: 'Acme/widgets', KUDBEE_LOCAL_EVAL: table,
+    env: { ...process.env, PORT: String(port), INCEPTION_API_KEY: '', DEEPSEEK_API_KEY: '', XAI_API_KEY: '', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: `http://127.0.0.1:${(ollama.address() as { port: number }).port}`, KUDBEE_GITHUB_API: `http://127.0.0.1:${(github.address() as { port: number }).port}`, KUDBEE_REPO: 'Acme/widgets', KUDBEE_LOCAL_EVAL: table,
       JANUS_BASE_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_URL: 'http://127.0.0.1:9', UPSTASH_VECTOR_REST_TOKEN: 'none', KUDBEE_DAILY_BUDGET_USD: '0', KUDBEE_DATA_DIR: path.join(tmp, 'data'), KUDBEE_WORKSPACE_DIR: path.join(tmp, 'ws'), THINKBOX_EMBEDDINGS: 'off', THINKBOX_LOCAL_MODEL: WEAK },
   });
   for (const end = Date.now() + 15000; Date.now() < end; await new Promise((r) => setTimeout(r, 150))) { try { if ((await fetch(`${base}/api/health`)).ok) break; } catch { /* starting */ } }

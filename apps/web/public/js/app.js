@@ -706,7 +706,11 @@ async function refreshFiles() {
   // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
   const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
   tree.innerHTML = visibleFiles.length
-    ? visibleFiles.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${escapeHtml(formatBytes(file.size))}</small></button>`).join('')
+    ? visibleFiles.map(file => {
+      const cut = file.path.lastIndexOf('/');
+      const dir = cut < 0 ? '' : file.path.slice(0, cut).replace(/^repositories\//, '');
+      return `<button class="file-tree-item" data-path="${escapeHtml(file.path)}" title="${escapeHtml(file.path)}"><span class="file-name">${escapeHtml(file.path.slice(cut + 1))}</span><small>${escapeHtml(formatBytes(file.size))}</small>${dir ? `<em class="file-dir">${escapeHtml(dir)}</em>` : ''}</button>`;
+    }).join('')
     : '<div class="file-tree-empty">No files in workspace</div>';
 }
 
