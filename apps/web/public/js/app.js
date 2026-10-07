@@ -706,7 +706,11 @@ async function refreshFiles() {
   // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
   const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
   tree.innerHTML = visibleFiles.length
-    ? visibleFiles.map(file => `<button class="file-tree-item" data-path="${escapeHtml(file.path)}"><span>${escapeHtml(file.path)}</span><small>${escapeHtml(formatBytes(file.size))}</small></button>`).join('')
+    ? visibleFiles.map(file => {
+      const cut = file.path.lastIndexOf('/');
+      const dir = cut < 0 ? '' : file.path.slice(0, cut).replace(/^repositories\//, '');
+      return `<button class="file-tree-item" data-path="${escapeHtml(file.path)}" title="${escapeHtml(file.path)}"><span class="file-name">${escapeHtml(file.path.slice(cut + 1))}</span><small>${escapeHtml(formatBytes(file.size))}</small>${dir ? `<em class="file-dir">${escapeHtml(dir)}</em>` : ''}</button>`;
+    }).join('')
     : '<div class="file-tree-empty">No files in workspace</div>';
 }
 
@@ -1373,8 +1377,8 @@ function renderGitRepositories(files) {
     return `
     <div class="git-repository-item${isAgentRepo ? ' is-agent-repo' : ''}">
       <strong>${escapeHtml(repository)}</strong>${isAgentRepo ? ' <span class="agent-repo-badge" title="The agent reads, searches and fixes this repository">agent repo</span>' : ''}
-      <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}
-      <button type="button" data-use-repo="${isAgentRepo ? '' : escapeHtml(repository)}" title="${isAgentRepo ? 'Stop using this repository; the agent goes back to the project the server runs in' : 'Make the agent work on this repository: it reads, searches and fixes it'}">${isAgentRepo ? 'stop using' : 'use for agent'}</button></div>
+      <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}</div>
+      <button type="button" class="use-repo-button" data-use-repo="${isAgentRepo ? '' : escapeHtml(repository)}" title="${isAgentRepo ? 'Stop using this repository; the agent goes back to the project the server runs in' : 'Make the agent work on this repository: it reads, searches and fixes it'}">${isAgentRepo ? 'Stop using this repo' : 'Use this repo for the agent'}</button>
     </div>`;
   }).join('');
 }

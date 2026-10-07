@@ -411,7 +411,7 @@ export async function listWorkspace(root: string): Promise<Array<{ path: string;
   async function walk(dir: string): Promise<void> {
     for (const entry of await fs.promises.readdir(dir, { withFileTypes: true })) {
       const abs = path.join(dir, entry.name);
-      if (entry.isDirectory()) await walk(abs);
+      if (entry.isDirectory()) { if (entry.name !== '.git' && entry.name !== 'node_modules') await walk(abs); }
       else out.push({ path: path.relative(root, abs).replaceAll(path.sep, '/'), size: (await fs.promises.stat(abs)).size });
     }
   }

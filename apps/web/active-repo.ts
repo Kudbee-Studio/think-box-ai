@@ -77,3 +77,20 @@ export class ActiveRepoManager {
     return null;
   }
 }
+
+/** A path the agent's file tools may use inside a chosen repository: relative, no "..", never the .git folder (any letter case, and not through a symlink). */
+export function repoFilePath(root: string, relativePath: string): string {
+  const base = path.resolve(root);
+  const normalized = relativePath.replaceAll('\\', '/').replace(/^\/+/, '');
+  const parts = normalized.split('/');
+  if (!normalized || parts.some((part) => part === '..')) throw new Error('Invalid workspace path');
+  const isGit = (segments: string[]): boolean => segments.some((part) => part.toLowerCase() === '.git');
+  if (isGit(parts)) throw new Error('The .git folder is not available to the agent');
+  const abs = path.resolve(base, normalized);
+  if (abs !== base && !abs.startsWith(`${base}${path.sep}`)) throw new Error('Path escapes workspace');
+  try {
+    const real = path.relative(fs.realpathSync(base), fs.realpathSync(abs));
+    if (isGit(real.split(path.sep))) throw new Error('The .git folder is not available to the agent');
+  } catch (err) { if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err; }
+  return abs;
+}
