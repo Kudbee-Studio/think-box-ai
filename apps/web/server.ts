@@ -41,6 +41,7 @@ import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, type AgentHooks } from './agent.ts';
 import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
+import { createWorkspaceResolver } from './workspace-resolver.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
@@ -267,16 +268,13 @@ const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
 
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-function sessionWorkspace(sessionId: string): string {
-  // Session ids are server-made UUIDs; refuse anything else here so no caller can build a workspace path from a stray string.
-  if (!SESSION_ID_RE.test(sessionId)) throw new Error('Invalid session id');
-  return path.join(workspaceRoot, sessionId);
-}
-
+// Interactive sessions share one persistent workspace per profile; a specialist Think Box keeps its own folder; older session folders still resolve to themselves (workspace-resolver.ts).
+const workspaces = createWorkspaceResolver({ root: workspaceRoot, idRe: SESSION_ID_RE, activeProfile: () => profileManager.getActiveId() });
+const prunedWorkspaces = workspaces.pruneEmpty(); if (prunedWorkspaces) console.log(`   Workspace: removed ${prunedWorkspaces} empty session folder(s) left by earlier versions`);
+// Session ids are server-made UUIDs; the resolver refuses anything else so no caller can build a workspace path from a stray string.
+const sessionWorkspace = (sessionId: string): string => workspaces.dirFor(sessionId);
 /** Live or past session: run history keeps pointing at workspaces after the socket closes. */
-function workspaceExists(sessionId: string): boolean {
-  return SESSION_ID_RE.test(sessionId) && (sessions.has(sessionId) || fs.existsSync(sessionWorkspace(sessionId)));
-}
+const workspaceExists = (sessionId: string): boolean => workspaces.exists(sessionId);
 
 function safeWorkspacePath(sessionId: string, relativePath: string): string {
   const normalized = relativePath.replaceAll('\\', '/').replace(/^\/+/, '');
@@ -1459,7 +1457,7 @@ export class AgentSession {
       temperature: this.config.temperature,
       createHooks: (allocation, runId) => {
         const worker = new AgentSession(allocation.thinkBoxId, { ...this.config });
-        fs.mkdirSync(sessionWorkspace(allocation.thinkBoxId), { recursive: true });
+        workspaces.isolate(allocation.thinkBoxId);
         const record = worker.newRun(`${allocation.contract.name}: ${intent}`, runId);
         record.jobId = jobId;
         record.specialistId = allocation.specialistId;
@@ -1801,7 +1799,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
   session.ws = ws;
   if (cliUpgrades.has(req)) session.client = 'cli';
   sessions.set(sessionId, session);
-  fs.promises.mkdir(sessionWorkspace(sessionId), { recursive: true }).catch((err) => console.error(`[session ${sessionId.slice(0, 8)}] could not create the workspace: ${describeError(err)}`));
+  workspaces.register(sessionId);
 
   // The active profile's settings are the baseline for a session; a saved per-session patch wins.
   try {

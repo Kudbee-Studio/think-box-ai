@@ -2,6 +2,7 @@
 // Proves: cross-origin / no-Origin / wrong-Host WebSocket upgrades are refused; every HTTP route refuses a
 // non-loopback Host (DNS rebinding); shell_exec is off by default and needs approval when enabled;
 // file_read/file_write are confined to the session workspace. Never touches port 3000 or the network.
+import { workspaceOf } from './helpers/workspace-path.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -170,7 +171,7 @@ test('file_read/file_write are confined to the session workspace', async () => {
     assert.match((await plugin(c, 'file_write', { path: outside, content: 'x' }, true)).error, /Absolute paths are not allowed/);
     assert.equal(fs.existsSync(outside), false);
 
-    const ws = path.join(s.workspaces, c.sessionId);
+    const ws = await workspaceOf(s.url, s.workspaces, c.sessionId);
     fs.mkdirSync(ws, { recursive: true });
     fs.symlinkSync(tmp, path.join(ws, 'escape'));
     fs.writeFileSync(path.join(tmp, 'secret.txt'), 'secret');
@@ -188,7 +189,7 @@ test('file_read/file_write are confined to the session workspace', async () => {
   } finally { c.close(); }
 });
 
-test('a caller cannot point plugins at another session', async () => {
+test('a caller cannot point plugins at another session (a folder named for it is not read; interactive sessions of one profile share the profile workspace by design)', async () => {
   const s = await start();
   const a = await connect(s);
   const b = await connect(s);
