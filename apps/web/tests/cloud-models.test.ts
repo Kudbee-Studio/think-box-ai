@@ -30,7 +30,7 @@ async function stub(status = 200): Promise<{ base: string; seen: Seen[]; close: 
 const hooks = (): AgentHooks => ({ signal: new AbortController().signal, workspace: '/tmp', resolvePath: (r: string) => r, onThought: () => {}, onEvent: () => {}, onFilesChanged: () => {}, checkBudget: () => null, approvedDomains: new Set(), requestApproval: async () => true, remember: async () => ({ id: 'x' }), recall: async () => ({ backend: 't', results: [] }), rssFeed: async () => ({ items: [] }) } as unknown as AgentHooks);
 
 test('the registry lists Mercury-2, DeepSeek and xAI, each with its own key and endpoint variables', () => {
-  assert.deepEqual(CLOUD_MODELS.map((m) => [m.name, m.provider, m.keyEnv]), [['mercury-2', 'inception', 'INCEPTION_API_KEY'], ['deepseek-flash', 'deepseek', 'DEEPSEEK_API_KEY'], ['grok-4.3', 'xai', 'XAI_API_KEY']]);
+  assert.deepEqual(CLOUD_MODELS.map((m) => [m.name, m.provider, m.keyEnv]), [['mercury-2', 'inception', 'INCEPTION_API_KEY'], ['deepseek-flash', 'deepseek', 'DEEPSEEK_API_KEY'], ['grok-4.3', 'xai', 'XAI_API_KEY'], ['grok-4.7', 'xai', 'XAI_API_KEY'], ['grok-build-0.1', 'xai', 'XAI_API_KEY']]);
   assert.ok(isCloudModel('deepseek-flash') && isCloudModel('mercury-2') && isCloudModel('grok-4.3'));
   assert.equal(providerOf('grok-4.3'), 'xai'); assert.equal(cloudModel('grok-4.3')?.vendor, 'xAI');
   assert.ok(!isCloudModel('qwen2.5:1.5b') && !isCloudModel('deepseek-chat'), 'an alias outside the registry is not a registered model');
@@ -44,7 +44,7 @@ test('configured models and the default follow which keys are set', () => {
   assert.equal(defaultAgentModel(), 'deepseek-flash'); assert.equal(inceptionConfigured(), false); assert.ok(cloudConfigured('deepseek-flash'));
   process.env.INCEPTION_API_KEY = 'i'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash']);
   assert.equal(defaultAgentModel(), 'mercury-2', 'Mercury stays the default when both are set');
-  process.env.XAI_API_KEY = 'x'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash', 'grok-4.3']);
+  process.env.XAI_API_KEY = 'x'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash', 'grok-4.3', 'grok-4.7', 'grok-build-0.1']);
   delete process.env.INCEPTION_API_KEY; delete process.env.DEEPSEEK_API_KEY; assert.equal(defaultAgentModel(), 'grok-4.3', 'xAI alone is enough');
 });
 
@@ -97,5 +97,5 @@ test('the dashboard model list shows each configured cloud model as a worker age
   assert.deepEqual((await clients.listModels().catch(() => [])).filter((m) => (m as { agent?: boolean }).agent), []);
   process.env.DEEPSEEK_API_KEY = 'd'; process.env.INCEPTION_API_KEY = 'i'; process.env.XAI_API_KEY = 'x';
   const list = (await clients.listModels()) as Array<{ name: string; provider: string; vendor?: string; agent?: boolean }>;
-  assert.deepEqual(list.filter((m) => m.agent).map((m) => [m.name, m.provider, m.vendor]), [['mercury-2', 'inception', 'Inception'], ['deepseek-flash', 'deepseek', 'DeepSeek'], ['grok-4.3', 'xai', 'xAI']]);
+  assert.deepEqual(list.filter((m) => m.agent).map((m) => [m.name, m.provider, m.vendor]), [['mercury-2', 'inception', 'Inception'], ['deepseek-flash', 'deepseek', 'DeepSeek'], ['grok-4.3', 'xai', 'xAI'], ['grok-4.7', 'xai', 'xAI'], ['grok-build-0.1', 'xai', 'xAI']]);
 });

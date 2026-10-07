@@ -5,14 +5,18 @@ export const CLOUD_MODELS: CloudModel[] = [
   { name: 'mercury-2', provider: 'inception', vendor: 'Inception', keyEnv: 'INCEPTION_API_KEY', baseUrlEnv: 'INCEPTION_BASE_URL', baseUrlDefault: 'https://api.inceptionlabs.ai/v1' },
   { name: 'deepseek-flash', provider: 'deepseek', vendor: 'DeepSeek', keyEnv: 'DEEPSEEK_API_KEY', baseUrlEnv: 'DEEPSEEK_BASE_URL', baseUrlDefault: 'https://api.deepseek.com/v1' },
   { name: 'grok-4.3', provider: 'xai', vendor: 'xAI', keyEnv: 'XAI_API_KEY', baseUrlEnv: 'XAI_BASE_URL', baseUrlDefault: 'https://api.x.ai/v1' },
+  { name: 'grok-4.7', provider: 'xai', vendor: 'xAI', keyEnv: 'XAI_API_KEY', baseUrlEnv: 'XAI_BASE_URL', baseUrlDefault: 'https://api.x.ai/v1' },
+  { name: 'grok-build-0.1', provider: 'xai', vendor: 'xAI', keyEnv: 'XAI_API_KEY', baseUrlEnv: 'XAI_BASE_URL', baseUrlDefault: 'https://api.x.ai/v1' },
 ];
 export const MERCURY = CLOUD_MODELS[0]!;
 
-// USD per million tokens. mercury-2: Inception price list (/v1/models). deepseek-flash and grok-4.3: conservative ESTIMATES (not read from the providers' price pages), so budgets err on the side of stopping early; replace with the exact rates.
+// USD per million tokens. mercury-2: Inception price list (/v1/models). deepseek-flash: a conservative ESTIMATE (not read from DeepSeek's price page). grok-4.3: $1.25 in / $2.50 out, derived from xAI's own billed cost in five calls (the fit also gave $0.20 cached input; reasoning tokens bill as output). grok-4.7 and grok-build-0.1: the founder's paste of xAI's model cards (not independently checked, except grok-build-0.1, whose one call's billed cost matched). When a response carries the provider's billed cost, that is used instead of any price.
 export const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'mercury-2': { input: 0.25, output: 0.75 },
   'deepseek-flash': { input: 0.30, output: 1.20 },
-  'grok-4.3': { input: 3.00, output: 15.00 },
+  'grok-4.3': { input: 1.25, output: 2.50 },
+  'grok-4.7': { input: 2.00, output: 6.00 },
+  'grok-build-0.1': { input: 1.00, output: 2.00 },
 };
 
 export function costUsd(model: string, promptTokens: number, completionTokens: number): number {
