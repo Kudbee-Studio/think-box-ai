@@ -32,6 +32,11 @@ test('the toolbar does not scroll inside itself (the hidden scroll box clipped C
   assert.ok(html.includes('src="/js/header-menu.js"'));
 });
 
+test('the header wraps to a second row below 1860 px, where the Model and Agent pickers would otherwise shrink to a few pixels', () => {
+  const m = css.match(/@media \(max-width: (\d+)px\) \{\s*\.header \{ flex-wrap: wrap;/);
+  assert.ok(m, 'a wrap rule exists'); assert.ok(Number(m![1]) >= 1859, `wraps up to ${m![1]}px`);
+});
+
 test('the menu closes when a tool is chosen, on an outside click, and on Escape; a click on the summary does not close it', () => {
   const listeners: Record<string, Array<(e: unknown) => void>> = {}; const menuListeners: Record<string, Array<(e: unknown) => void>> = {};
   let open = true; let focused = false;

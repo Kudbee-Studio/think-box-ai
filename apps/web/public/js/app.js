@@ -10,6 +10,7 @@ import { TemplateBrowserUI } from './template-browser-ui.js';
 const state = {
   ws: null,
   sessionId: null,
+  agentRepo: null,
   isRunning: false,
   models: [],
   plugins: [],
@@ -700,6 +701,7 @@ async function refreshFiles() {
   if (!response.ok) return;
   const data = await response.json();
   const tree = document.getElementById('file-tree');
+  await loadAgentRepo();
   renderGitRepositories(data.files);
   // Git internals (repositories/<name>/.git/...) are noise in the file list; the repository row shows status, log, diff and branch instead.
   const visibleFiles = data.files.filter(file => !/(^|\/)\.git(\/|$)/.test(file.path));
@@ -1366,12 +1368,34 @@ function renderGitRepositories(files) {
     container.innerHTML = '<div class="file-tree-empty">No Git repositories connected</div>';
     return;
   }
-  container.innerHTML = repositories.map(repository => `
-    <div class="git-repository-item">
-      <strong>${escapeHtml(repository)}</strong>
-      <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}</div>
-    </div>
-  `).join('');
+  container.innerHTML = repositories.map(repository => {
+    const isAgentRepo = state.agentRepo === repository;
+    return `
+    <div class="git-repository-item${isAgentRepo ? ' is-agent-repo' : ''}">
+      <strong>${escapeHtml(repository)}</strong>${isAgentRepo ? ' <span class="agent-repo-badge" title="The agent reads, searches and fixes this repository">agent repo</span>' : ''}
+      <div>${['status', 'log', 'diff', 'branch'].map(action => `<button type="button" data-git-action="${action}" data-git-path="repositories/${escapeHtml(repository)}">${action}</button>`).join('')}
+      <button type="button" data-use-repo="${isAgentRepo ? '' : escapeHtml(repository)}" title="${isAgentRepo ? 'Stop using this repository; the agent goes back to the project the server runs in' : 'Make the agent work on this repository: it reads, searches and fixes it'}">${isAgentRepo ? 'stop using' : 'use for agent'}</button></div>
+    </div>`;
+  }).join('');
+}
+
+/** The repository the agent works on (chosen per profile on the server). */
+async function loadAgentRepo() {
+  try {
+    const response = await fetch('/api/repo/active', { cache: 'no-store' });
+    if (response.ok) state.agentRepo = ((await response.json()).active || {}).name || null;
+  } catch { /* the badge is optional */ }
+}
+
+async function chooseAgentRepo(name) {
+  const response = await fetch('/api/repo/active', name
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) }
+    : { method: 'DELETE' });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) { appendTerminalMessage('error', `Could not change the agent repository: ${result.error || response.statusText}`); return; }
+  state.agentRepo = (result.active || {}).name || null;
+  appendTerminalMessage('system', state.agentRepo ? `The agent now works on repositories/${state.agentRepo}: its repository tools, searches and fixes read that repository.` : 'The agent is back on the project this server runs in.');
+  refreshFiles();
 }
 
 async function refreshConnectionMonitor() {
@@ -1983,6 +2007,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('git-repository-list').addEventListener('click', event => {
     const button = event.target.closest('[data-git-action]');
     if (button) sendGitAction(button.dataset.gitAction, { path: button.dataset.gitPath });
+    const use = event.target.closest('[data-use-repo]');
+    if (use) chooseAgentRepo(use.dataset.useRepo);
   });
   document.getElementById('file-tree').addEventListener('click', event => {
     const file = event.target.closest('.file-tree-item');

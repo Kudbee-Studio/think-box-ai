@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T13:18:23.266Z",
+  "head": "25d9411f",
+  "base": "gh/main",
+  "base_sha": "74913e90",
+  "branch": "feat/pr401-p3.61-agent-repo",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1451
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1660
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1626
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1462 passed, 0 failed; lines 92.65% (floor 90%)",
+      "ms": 61986
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 575994
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 283152
+    }
+  ],
+  "verdict": "PASS"
+}
