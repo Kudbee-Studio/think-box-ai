@@ -1,6 +1,5 @@
 // What the agent changed in the repository chosen with "use for agent": the changed files, a bounded diff per file, and undo. Plain git, no index changes.
 import { execFile } from 'node:child_process';
-import fs from 'node:fs';
 import { repoFilePath } from './active-repo.ts';
 
 export interface RepoChange { path: string; status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' }
@@ -53,10 +52,11 @@ export async function diffOf(root: string, relativePath: string): Promise<{ diff
 /** Put one file, or every changed file, back to the last commit. New files are deleted; ignored files are left alone. */
 export async function undoChanges(root: string, relativePath?: string): Promise<{ restored: number }> {
   if (relativePath !== undefined) {
-    const abs = repoFilePath(root, relativePath);
+    repoFilePath(root, relativePath);
     const known = (await listChanges(root)).files.find((f) => f.path === relativePath);
     if (!known) throw new Error('That file has no changes');
-    if (known.status === 'untracked' || known.status === 'added') { await git(root, ['rm', '-f', '--cached', '--ignore-unmatch', '--', relativePath]); fs.rmSync(abs, { force: true }); }
+    if (known.status === 'untracked') await git(root, ['clean', '-fq', '--', relativePath]);
+    else if (known.status === 'added') await git(root, ['rm', '-fq', '--', relativePath]);
     else await git(root, ['checkout', 'HEAD', '--', relativePath]);
     return { restored: 1 };
   }

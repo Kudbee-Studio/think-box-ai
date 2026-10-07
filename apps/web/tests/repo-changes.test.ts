@@ -65,3 +65,10 @@ test('a staged change is undone too', async () => {
   await undoChanges(root, 'src/a.js');
   assert.equal(fs.readFileSync(path.join(root, 'src/a.js'), 'utf8'), 'one\n');
 });
+
+test('a new file the agent already staged is removed by undo', async () => {
+  put('new/d.js', 'x\n'); git('add', 'new/d.js');
+  assert.equal((await listChanges(root)).files[0]?.status, 'added');
+  await undoChanges(root, 'new/d.js');
+  assert.equal(fs.existsSync(path.join(root, 'new/d.js')), false);
+});
