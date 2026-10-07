@@ -25,3 +25,11 @@ export function repoContextLine(repo: string | null): string {
     ? `KNOWN REPOSITORY: this project's GitHub repository is ${repo} (https://github.com/${repo}; API https://api.github.com/repos/${repo}). Use exactly this owner and name in GitHub URLs; never guess a different one.`
     : '';
 }
+
+let knownCache: { key: string; value: string | null } | null = null;
+/** The known repository for the current repository root, cached until KUDBEE_REPO or the root changes (the agent repository can be switched at runtime). */
+export function knownRepoFor(env: Record<string, string | undefined>, root: string): string | null {
+  const key = `${env.KUDBEE_REPO ?? ''}|${root}`;
+  if (!knownCache || knownCache.key !== key) knownCache = { key, value: detectRepo(env, root) };
+  return knownCache.value;
+}

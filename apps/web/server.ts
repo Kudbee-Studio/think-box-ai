@@ -26,22 +26,15 @@ import path from 'path';
 import fs from 'fs';
 
 import type {
-  AgentSessionConfig,
-  ChatMessage,
-  MemoryEntry,
-  Plugin,
-  PluginConfig,
-  PluginInput,
-  PluginResult,
-  SessionConfigInput,
-  Task, Thought,
-  WsMessage,
+  AgentSessionConfig, ChatMessage, MemoryEntry, Plugin, PluginConfig, PluginInput, PluginResult, SessionConfigInput, Task, Thought, WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
 import { SDK_VERSION } from './sdk/index.ts';
 import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCloudModel, newRunContext, providerOf, runGovernedTool, type AgentHooks } from './agent.ts';
 import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
 import { createWorkspaceResolver } from './workspace-resolver.ts';
+import { ActiveRepoManager } from './active-repo.ts';
+import { registerActiveRepoRoutes } from './routes/active-repo.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
@@ -58,7 +51,7 @@ import { RunStore, classifyFailure, type RunRecord } from './runs.ts';
 import { MemoryStore, profileMemoryRoot } from './memory.ts';
 import { ProfileManager } from './profile-manager.ts';
 import { createMemorySemantic } from './memory-semantic.ts';
-import { detectRepo, repoContextLine } from './repo-context.ts';
+import { knownRepoFor, repoContextLine } from './repo-context.ts';
 import { algorandQuery } from './algorand.ts';
 import PersistenceLayer from './persistence.ts';
 import { LearningStore } from './learning-store.ts';
@@ -242,7 +235,7 @@ function activateProfile(profileId: string): void {
   runStore.setProfile(profile.id);
   convoyStore.setProfile(profile.id);
   memoryStore.switchTo(profileMemoryRoot(profilesDir, profile.id), profile.id);
-  void memoryStore.syncVectors();
+  void memoryStore.syncVectors(); activeRepos.apply(profile.id);
   for (const session of sessions.values()) session.broadcast({ type: 'profile_changed', data: { id: profile.id, name: profile.name } });
 }
 
@@ -274,6 +267,7 @@ const prunedWorkspaces = workspaces.pruneEmpty(); if (prunedWorkspaces) console.
 const sessionWorkspace = (sessionId: string): string => workspaces.dirFor(sessionId);
 /** Live or past session: run history keeps pointing at workspaces after the socket closes. */
 const workspaceExists = (sessionId: string): boolean => workspaces.exists(sessionId);
+const activeRepos = new ActiveRepoManager({ file: path.join(dataDir, 'active-repo.json'), profileDir: (p) => workspaces.profileDir(p) }); activeRepos.apply(profileManager.getActiveId());
 
 function safeWorkspacePath(sessionId: string, relativePath: string): string {
   const normalized = relativePath.replaceAll('\\', '/').replace(/^\/+/, '');
@@ -622,8 +616,7 @@ async function goalEmbedding(goal: string): Promise<{ goalVector?: Float32Array;
 }
 
 // Only read when a goal runs, so the `git remote get-url` spawn is not paid at startup.
-let knownRepo: string | null | undefined;
-const getKnownRepo = (): string | null => (knownRepo === undefined ? (knownRepo = detectRepo()) : knownRepo);
+const getKnownRepo = (): string | null => knownRepoFor(process.env, repoRoot());
 memoryStore.semantic = createMemorySemantic({ memory: memoryStore, tokens: tokenStore, peek: () => peekEmbedder(), state: () => embedderState() });
 
 let liveClassifier: Promise<((texts: string[]) => Promise<boolean[]>) | null> | null = null;
@@ -2203,6 +2196,7 @@ function refreshInstalledLocal(): void {
 }
 refreshInstalledLocal();
 
+const isHumanReq = (req: Request): boolean => isAllowedOrigin(typeof req.headers.origin === 'string' ? req.headers.origin : undefined, PORT_NUM) || tokensMatch(LOCAL_TOKEN, String(req.headers[TOKEN_HEADER] ?? ''));
 registerConvoyRoutes(app, {
   convoyStore,
   runStore,
@@ -2229,8 +2223,9 @@ registerConvoyRoutes(app, {
     if (!result.ok) return result;
     return { ok: true, convoy: convoyStore.create(result.plan.goal, result.plan, evaluatePolicy(result.plan)) };
   },
-  isHuman: (req) => isAllowedOrigin(typeof req.headers.origin === 'string' ? req.headers.origin : undefined, PORT_NUM) || tokensMatch(LOCAL_TOKEN, String(req.headers[TOKEN_HEADER] ?? '')),
+  isHuman: isHumanReq,
 });
+registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {

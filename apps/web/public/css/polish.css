@@ -73,8 +73,8 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (max-width: 1599px) {
   .model-selector label, .agent-selector label { display: none; }
 }
-/* Below ~1500px the toolbar takes its own row under the pickers rather than squeezing them */
-@media (max-width: 1499px) {
+/* Below ~1860px the toolbar takes its own row under the pickers rather than squeezing them to a few pixels */
+@media (max-width: 1859px) {
   .header { flex-wrap: wrap; row-gap: var(--spacing-sm); }
   .header-right { order: 3; flex: 1 1 100%; margin-left: 0; flex-wrap: wrap; justify-content: flex-start; }
 }
@@ -317,3 +317,12 @@ select option:checked, select option:hover { background-color: var(--bg-active, 
 
 /* The header "Website" link is an anchor styled as a secondary button. */
 a.btn-secondary { text-decoration: none; display: inline-flex; align-items: center; }
+
+/* The repository the agent works on */
+.agent-repo-badge { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; background: var(--bg-accent-subtle); border: 1px solid var(--border-accent-strong); color: var(--accent-light); white-space: nowrap; }
+.git-repository-item.is-agent-repo { box-shadow: inset 2px 0 0 var(--accent-primary); }
+
+/* A repository row: the name and badge on top, its buttons wrapping underneath, so a long name is never squeezed */
+.git-repository-item { flex-wrap: wrap; row-gap: 6px; }
+.git-repository-item > strong { flex: 1 1 100%; white-space: normal; overflow-wrap: anywhere; }
+.git-repository-item > div { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 100%; }
