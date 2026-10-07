@@ -39,6 +39,7 @@ import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
 import { repoRoot } from './repo-tools.ts';
+import { definedChecks } from './scratch-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
 import { createMercuryChat } from './mercury-chat.ts';
 import { agentRoute, escalatedRoute, localChatRoute, recipeRoute, refusedRoute, type RouteDecision } from './route-decision.ts';
@@ -2217,7 +2218,7 @@ registerConvoyRoutes(app, {
       else routing = { source: 'default', model: agentModel || resolveLocalModel(), reason: pick.reason };
     }
     const result = planConvoy({
-      goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isCloudModel(m),
+      goal, budget, mode, lookupModel: routing.model, routing, agentModel, isLocalModel: (m) => !isCloudModel(m), repoChecks: definedChecks(repoRoot()),
       availableTools: TOOLS.map((t) => t.function.name), costOf: costOfModel, now: Date.now(),
     });
     if (!result.ok) return result;
