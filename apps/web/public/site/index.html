@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>THINK BOX AI · Local-first, governed Agent OS by kudbEE</title>
+  <meta name="description" content="THINK BOX AI is a local-first Agent OS by kudbEE. Agents plan and use tools on your machine behind approval gates, local model routing and an append-only ledger. Agents propose, you decide.">
+  <link rel="canonical" href="https://www.kudbee.xyz/">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#07080c">
+  <meta name="color-scheme" content="dark light">
+  <!-- Open Graph / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="THINK BOX AI">
+  <meta property="og:title" content="THINK BOX AI · Agents propose. You decide.">
+  <meta property="og:description" content="A local-first, governance-first Agent OS by kudbEE: approval gates, local model routing, SQLite memory and an append-only ledger.">
+  <meta property="og:url" content="https://www.kudbee.xyz/">
+  <meta property="og:image" content="https://www.kudbee.xyz/assets/og-cube.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="The THINK BOX AI cube: a 3D puzzle cube whose stickers name parts of the Agent OS">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="THINK BOX AI · Agents propose. You decide.">
+  <meta name="twitter:description" content="A local-first, governance-first Agent OS by kudbEE.">
+  <meta name="twitter:image" content="https://www.kudbee.xyz/assets/og-cube.png">
+  <meta name="twitter:image:alt" content="The THINK BOX AI cube: a 3D puzzle cube whose stickers name parts of the Agent OS">
+  <!-- Icons / PWA -->
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <!-- Performance: CSS and the display font first, no third parties -->
+  <link rel="preload" href="styles.css" as="style">
+  <link rel="preload" href="assets/fonts/InterTight-latin-var.woff2" as="font" type="font/woff2" crossorigin>
+  <script src="theme-init.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Think Box AI", "alternateName": "KUDBEE Agent OS", "applicationCategory": "DeveloperApplication", "description": "A local-first, governance-first Agent OS: AI agents plan and use tools on your machine behind approval gates, with an append-only action ledger.", "url": "https://www.kudbee.xyz/", "image": "https://www.kudbee.xyz/assets/og-cube.png", "license": "https://opensource.org/licenses/MIT", "isAccessibleForFree": true, "sameAs": ["https://github.com/Kudbee-Studio/think-box-ai"], "publisher": {"@type": "Organization", "name": "kudbEE", "url": "https://www.kudbee.xyz/"}}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "kudbEE", "alternateName": "KUDBEE", "url": "https://www.kudbee.xyz/", "logo": "https://www.kudbee.xyz/assets/icon-512.png", "sameAs": ["https://github.com/Kudbee-Studio"]}</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a class="brand" href="#top" aria-label="THINK BOX AI home">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">THINK BOX <b>AI</b></span>
+      <span class="brand__by">by kudbEE</span>
+    </a>
+    <nav aria-label="Primary">
+      <button class="nav__toggle" aria-expanded="false" aria-controls="nav-links"><span class="sr-only">Menu</span><span aria-hidden="true"></span></button>
+      <ul id="nav-links" class="nav__links">
+        <li><a href="#system">System</a></li>
+        <li><a href="#flow">Flow</a></li>
+        <li><a href="#terminal">Terminal</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#tokens">Think Tokens</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+      </ul>
+    </nav>
+    <div class="nav__tools">
+      <button type="button" class="icon-btn" id="open-palette" aria-label="Open command palette (Ctrl or Cmd + K)" aria-haspopup="dialog"><span aria-hidden="true">⌘K</span></button>
+      <button type="button" class="icon-btn theme-btn" id="theme-toggle" aria-label="Switch to light theme" aria-pressed="false"><span class="theme-btn__icon" aria-hidden="true"></span></button>
+    </div>
+  </div>
+</header>
+<!-- ============ OVERLAYS ============ -->
+<div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+<nav class="minimap" id="minimap" aria-label="Section mini-map"><ol></ol></nav>
+<button type="button" class="sect-pill" id="sect-pill" aria-label="Open command palette"><span class="sect-pill__dot"></span><span id="sect-pill-label">Tour</span></button>
+
+
+
+<main id="main">
+<noscript><div class="noscript wrap"><h2>THINK BOX AI in one paragraph</h2><p>THINK BOX AI (KUDBEE Agent OS) is a local-first Agent OS by kudbEE. Its dashboard runs on 127.0.0.1. Tools run behind permission checks and approval gates, with shell_exec off by default. Small work goes to a local model (qwen2.5:1.5b via Ollama) with Mercury 2 as fallback, memory lives in SQLite, and every governed action lands in an append-only ledger. Agents propose and the founder decides. Interactive parts (3D cube, terminal demo, changelog) need JavaScript, and everything else on this page reads fine without it. Source: <a href="https://github.com/Kudbee-Studio/think-box-ai">github.com/Kudbee-Studio/think-box-ai</a>.</p></div></noscript>
+
+<!-- ============ HERO + CUBE SCROLLYTELLING ============ -->
+<section class="scrolly" id="top" aria-label="Think Box AI system tour">
+  <div class="stage" id="stage">
+    <div class="stage__glow" aria-hidden="true"></div>
+    <canvas id="cube-canvas" role="img" aria-label="Interactive 3D cube. Each face represents one part of Think Box AI: dashboard, agent runtime, tools and plugins, local models, memory, and security approvals."></canvas>
+    <!-- No-WebGL / no-module fallback: CSS 3D cube -->
+    <div class="cube-fallback" id="cube-fallback" aria-hidden="true">
+      <div class="cf" id="cf">
+        <div class="cf__f cf--front" style="--c:var(--runtime)">Agent runtime</div>
+        <div class="cf__f cf--back" style="--c:var(--security)">Security</div>
+        <div class="cf__f cf--right" style="--c:var(--tools)">Tools</div>
+        <div class="cf__f cf--left" style="--c:var(--models)">Local models</div>
+        <div class="cf__f cf--top" style="--c:var(--dashboard)">Dashboard</div>
+        <div class="cf__f cf--bottom" style="--c:var(--memory)">Memory</div>
+      </div>
+    </div>
+    <div class="stage__hud" aria-live="polite">
+      <span class="hud__dot" id="hud-dot"></span>
+      <span id="hud-label">Think Box AI</span>
+      <span class="hud__idx" id="hud-idx">00 / 06</span>
+    </div>
+    <p class="stage__hint" id="stage-hint">Drag to turn · tap any sticker to twist it and see what it solves</p>
+    <div class="cube-tip" id="cube-tip" role="status" hidden></div>
+    <div class="cube-ctrl" role="group" aria-label="Cube puzzle">
+      <button type="button" class="chip-btn" id="cube-scramble">Scramble</button>
+      <button type="button" class="chip-btn" id="cube-solve" disabled>Solve</button>
+    </div>
+    <div class="cube-card" id="cube-card" role="status" aria-live="polite" hidden></div>
+  </div>
+
+  <div class="panels">
+    <article class="panel panel--hero is-active" data-step="0">
+      <p class="eyebrow"><span class="pill">kudbEE</span> THINK BOX AI · KUDBEE Agent OS</p>
+      <h1 class="hero__title">Agents propose.<br><span class="grad">You decide.</span></h1>
+      <p class="lead">Think Box AI is a <button type="button" class="gl" data-term="agent-os">local-first Agent OS</button>: AI agents plan and use tools on your machine, <button type="button" class="gl" data-term="approval">behind approval gates</button>, with every action written to an <button type="button" class="gl" data-term="ledger">append-only ledger</button>. This site is the plain-language guide to the whole project.</p>
+      <div class="cta">
+        <a class="btn btn--primary" href="#system-1">Take the tour</a>
+        <a class="btn btn--ghost" href="#terminal">Watch a session</a>
+      </div>
+      <ul class="hero__facts" aria-label="At a glance">
+        <li><b>Local-first</b><span>Dashboard bound to loopback</span></li>
+        <li><b>Governed</b><span>Side effects pass admission</span></li>
+        <li><b>Honest</b><span>Every claim carries an evidence label</span></li>
+      </ul>
+      <p class="scroll-cue" aria-hidden="true">Scroll to turn the cube</p>
+    </article>
+
+    <article class="panel" data-step="1" id="system" style="--c:var(--dashboard)">
+      <span id="system-1" class="anchor"></span>
+      <p class="kicker"><span class="swatch"></span>01 · Dashboard</p>
+      <h2>A control room that never leaves your machine.</h2>
+      <p>The operator dashboard lives in <code>apps/web</code>: an Express + WebSocket web tier that binds to <code>127.0.0.1:3000</code>. It is local-only today. Login, roles and HTTPS come later on the roadmap, before it is ever exposed <button type="button" class="gl" data-term="loopback">beyond loopback</button>.</p>
+      <ul class="ticks"><li>Live agent status over WebSocket</li><li>Host and Origin checks on every connection</li><li>No public exposure until E6 (TLS deploy)</li></ul>
+    </article>
+
+    <article class="panel" data-step="2" id="tour-runtime" style="--c:var(--runtime)">
+      <p class="kicker"><span class="swatch"></span>02 · Agent runtime</p>
+      <h2>Goals become tasks. Tasks become evidence.</h2>
+      <p>The runtime breaks a goal into tasks, schedules them, and asks the governance backend before anything with side effects runs. The backend (FastAPI) <button type="button" class="gl" data-term="admission">holds the admission gate</button>, the action ledger and the receipts.</p>
+      <ul class="ticks"><li>Layered stack, from foundation to agents</li><li>Draft or simulate is the default mode</li><li><button type="button" class="gl" data-term="evidence">Evidence labels</button>: simulated · inferred · verified</li></ul>
+    </article>
+
+    <article class="panel" data-step="3" id="tour-tools" style="--c:var(--tools)">
+      <p class="kicker"><span class="swatch"></span>03 · Tools &amp; plugins</p>
+      <h2>Every tool call is a request, not a command.</h2>
+      <p>Tools and plugins run through permission checks. A tool without an explicit permission level is treated as <code>RESTRICTED</code>. File tools stay inside the workspace, and <code>shell_exec</code> is off by default.</p>
+      <ul class="ticks"><li>Approval gate before side effects</li><li>Workspace-confined file access</li><li><button type="button" class="gl" data-term="mcp">MCP</button> and Algorand (read-only) integrations</li></ul>
+    </article>
+
+    <article class="panel" data-step="4" id="tour-models" style="--c:var(--models)">
+      <p class="kicker"><span class="swatch"></span>04 · Local models</p>
+      <h2>Small and local first. Bigger only when needed.</h2>
+      <p>A router sends cheap work to a small local model <button type="button" class="gl" data-term="ollama">(<code>qwen2.5:1.5b</code> via Ollama)</button> and can fall back to Mercury 2. Token telemetry is recorded per route. Providers swap through config, with no provider SDK in runtime code.</p>
+      <ul class="ticks"><li>Cheap route: local Ollama</li><li>Fallback route: Mercury 2</li><li>Per-route token telemetry</li></ul>
+    </article>
+
+    <article class="panel" data-step="5" id="tour-memory" style="--c:var(--memory)">
+      <p class="kicker"><span class="swatch"></span>05 · Memory</p>
+      <h2>Memory in one file you can back up.</h2>
+      <p>Persistent memory runs on SQLite: no server, one file, <button type="button" class="gl" data-term="fts5">FTS5 for search</button>. Postgres (Neon) was tried and then <button type="button" class="gl" data-term="adr">reverted in ADR 026</button>. It only comes back if a measured scale criterion is met.</p>
+      <ul class="ticks"><li>SQLite is the system of record</li><li>Hermetic tests, simple backups</li><li>Reopen criteria are written down, not guessed</li></ul>
+    </article>
+
+    <article class="panel" data-step="6" id="tour-security" style="--c:var(--security)">
+      <p class="kicker"><span class="swatch"></span>06 · Security &amp; approvals</p>
+      <h2>The founder merges. Agents propose.</h2>
+      <p>Agents open proposals and the founder reviews and merges all work. At runtime the same idea applies: risky actions wait for a human, audit logs are append-only, and nothing is called "live verified" without real evidence.</p>
+      <ul class="ticks"><li>Human-in-the-loop by default</li><li>Append-only action ledger</li><li>Four-state ladder: code complete → test verified → live verified → production ready</li></ul>
+    </article>
+  </div>
+</section>
+
+<!-- ============ BUILT IN PUBLIC: PROOF STRIP (real GitHub numbers, static) ============ -->
+<section class="proof" id="proof" aria-labelledby="proof-h">
+  <div class="wrap">
+    <h2 id="proof-h" class="proof__h"><span class="eyebrow">Built in public</span><span class="sr-only">Repository numbers</span></h2>
+    <ul class="proof__grid">
+      <li class="proof__item"><span class="proof__num" data-count="254">254</span><span class="proof__lbl">merged pull requests</span></li>
+      <li class="proof__item"><span class="proof__num" data-count="2244">2,244</span><span class="proof__lbl">commits on <code>main</code></span></li>
+      <li class="proof__item"><span class="proof__num" data-count="34">34</span><span class="proof__lbl">ADR files</span></li>
+      <li class="proof__item"><span class="proof__num" data-count="453">453</span><span class="proof__lbl">test files</span></li>
+    </ul>
+    <p class="src-note">As of Sep 30 to Oct 1, 2026, read-only from the GitHub API for <code>Kudbee-Studio/think-box-ai</code>. Merged PRs come from a search count on Oct 1. Commits come from <code>main</code> pagination at <code>bb3e7b6</code> (Sep 30, 9:23 PM CT). ADR and test-file counts come from the <code>main</code> file tree (Sep 30). Test files are <code>test_*.py</code> + <code>*.test.ts</code>. That counts files, not passing tests.</p>
+  </div>
+</section>
+
+<!-- ============ PROBLEM ============ -->
+<section class="section" id="problem" aria-labelledby="problem-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-problem-1600.webp" srcset="assets/art-problem-800.webp 800w, assets/art-problem-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: scattered glowing cubes drifting apart, a metaphor for agents without guardrails"></div>
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <h2 id="problem-h" class="h-xl">Powerful agents. <span class="muted">No guardrails.</span></h2>
+    <div class="grid3">
+      <div class="card reveal"><h3>They act without asking</h3><p>Many agent setups let a model run shell commands, write files or call APIs directly. One bad plan and the damage is already done.</p></div>
+      <div class="card reveal"><h3>Nothing is accountable</h3><p>When something goes wrong, there is often no tamper-evident record of who asked, what ran and why it was allowed.</p></div>
+      <div class="card reveal"><h3>Claims outrun evidence</h3><p>"It works" often means "it compiled." Think Box labels every capability claim, so a simulated result is never shown as a verified one.</p></div>
+    </div>
+    <!-- TODO founder: add the personal origin story here: why you started KUDBEE and the moment the problem became real for you. -->
+    <p class="founder-slot">[Founder to write: the moment this problem became personal.]</p>
+  </div>
+</section>
+
+<!-- ============ REQUEST FLOW ============ -->
+<section class="section" id="flow" aria-labelledby="flow-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-flow-1600.webp" srcset="assets/art-flow-800.webp 800w, assets/art-flow-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: small cubes riding a glowing path through three rings, a metaphor for a request crossing trust boundaries"></div>
+  <div class="wrap">
+    <p class="eyebrow">How Think Box works</p>
+    <h2 id="flow-h" class="h-xl">Follow one request <span class="muted">through the system.</span></h2>
+    <p class="lead narrow">Three trust boundaries, each one checked. Tap a step or press play.</p>
+
+    <div class="flow" id="flow-viz">
+      <ol class="flow__track" role="list">
+        <li class="flow__node" data-i="0" style="--c:var(--dashboard)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">1</span><span class="flow__name">Browser / kudbee CLI</span><span class="flow__sub">You ask</span></button></li>
+        <li class="flow__node" data-i="1" style="--c:var(--dashboard)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">2</span><span class="flow__name">Web tier</span><span class="flow__sub">Express + WebSocket</span></button></li>
+        <li class="flow__node" data-i="2" style="--c:var(--runtime)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">3</span><span class="flow__name">Agent runtime</span><span class="flow__sub">Plan → tasks</span></button></li>
+        <li class="flow__node" data-i="3" style="--c:var(--security)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">4</span><span class="flow__name">Governance</span><span class="flow__sub">Admission · ledger</span></button></li>
+        <li class="flow__node" data-i="4" style="--c:var(--tools)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">5</span><span class="flow__name">Tools &amp; plugins</span><span class="flow__sub">Allow-listed</span></button></li>
+        <li class="flow__node" data-i="5" style="--c:var(--models)"><button type="button" aria-describedby="flow-detail"><span class="flow__num">6</span><span class="flow__name">Models + memory</span><span class="flow__sub">Ollama · SQLite</span></button></li>
+      </ol>
+      <div class="flow__beam" aria-hidden="true"><span class="flow__pulse"></span></div>
+      <div class="flow__detail card" id="flow-detail" aria-live="polite">
+        <p class="flow__step" id="flow-step">Step 1 of 6</p>
+        <h3 id="flow-title">You ask</h3>
+        <p id="flow-text">A request starts in the local dashboard or the kudbee CLI. Nothing leaves your machine just because you typed it.</p>
+      </div>
+      <div class="flow__ctrl">
+        <button class="btn btn--ghost btn--sm" id="flow-prev" type="button" aria-label="Previous step">←</button>
+        <button class="btn btn--primary btn--sm" id="flow-play" type="button" aria-pressed="false">Play flow</button>
+        <button class="btn btn--ghost btn--sm" id="flow-next" type="button" aria-label="Next step">→</button>
+      </div>
+    </div>
+
+    <figure class="arch card">
+      <figcaption>Trust boundaries, per ADR 027 (current shape)</figcaption>
+      <svg viewBox="0 0 720 260" role="img" aria-labelledby="arch-t arch-d">
+        <title id="arch-t">Think Box AI architecture</title>
+        <desc id="arch-d">The browser or CLI talks to the web tier over a session (boundary 1). The web tier talks to the governance backend with an API key (boundary 2). The backend reaches the worker only over governed SSH with allow-listed read-only commands (boundary 3).</desc>
+        <defs><linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+        <g font-family="inherit" font-size="13" class="arch__ink">
+          <rect x="10" y="90" width="140" height="70" rx="14" class="arch__node" stroke="#38bdf8"/><text x="80" y="122" text-anchor="middle" font-weight="600">Browser / CLI</text><text x="80" y="142" text-anchor="middle" class="arch__mute" font-size="11">operator</text>
+          <rect x="195" y="90" width="150" height="70" rx="14" class="arch__node" stroke="#38bdf8"/><text x="270" y="122" text-anchor="middle" font-weight="600">Web tier</text><text x="270" y="142" text-anchor="middle" class="arch__mute" font-size="11">Express + WS · 127.0.0.1</text>
+          <rect x="390" y="90" width="160" height="70" rx="14" class="arch__node" stroke="#f43f5e"/><text x="470" y="122" text-anchor="middle" font-weight="600">Governance</text><text x="470" y="142" text-anchor="middle" class="arch__mute" font-size="11">FastAPI · admission · ledger</text>
+          <rect x="595" y="90" width="115" height="70" rx="14" class="arch__node" stroke="#fb923c"/><text x="652" y="122" text-anchor="middle" font-weight="600">Worker</text><text x="652" y="142" text-anchor="middle" class="arch__mute" font-size="11">governed SSH</text>
+          <path class="arch__wire" d="M150 125 H195 M345 125 H390 M550 125 H595" stroke="url(#g1)" stroke-width="2" fill="none"/>
+          <g class="arch__mute" font-size="11"><text x="172" y="70" text-anchor="middle">① session</text><text x="367" y="70" text-anchor="middle">② API key</text><text x="572" y="70" text-anchor="middle">③ allow-list</text></g>
+          <g stroke="#2a2f3d" stroke-dasharray="4 4"><line x1="172" y1="78" x2="172" y2="190"/><line x1="367" y1="78" x2="367" y2="190"/><line x1="572" y1="78" x2="572" y2="190"/></g>
+          <rect x="250" y="200" width="250" height="44" rx="12" class="arch__node" stroke="#34d399"/><text x="375" y="227" text-anchor="middle" font-size="12">Local models (Ollama) · SQLite memory</text>
+          <path class="arch__wire" d="M300 160 V200 M450 160 V200" stroke="#34d399" stroke-width="1.5" fill="none"/>
+        </g>
+      </svg>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ EXPLODED ARCHITECTURE ============ -->
+<section class="section" id="explore" aria-labelledby="explore-h">
+  <div class="wrap">
+    <p class="eyebrow">Click to explore</p>
+    <h2 id="explore-h" class="h-xl">The stack, <span class="muted">pulled apart.</span></h2>
+    <p class="lead narrow">Seven layers, from the screen you touch down to the foundation. Explode the stack, then tap any layer to see what lives there.</p>
+    <div class="explode" id="explode">
+      <div class="explode__scene" aria-hidden="true">
+        <div class="explode__stack" id="explode-stack">
+          <div class="plate" data-l="6" style="--c:var(--dashboard);--i:6"><span class="plate__k">L6</span><span class="plate__n">Surfaces</span></div>
+          <div class="plate" data-l="5" style="--c:#c084fc;--i:5"><span class="plate__k">L5</span><span class="plate__n">Agents</span></div>
+          <div class="plate" data-l="4" style="--c:var(--runtime);--i:4"><span class="plate__k">L4</span><span class="plate__n">Runtime</span></div>
+          <div class="plate" data-l="3" style="--c:var(--security);--i:3"><span class="plate__k">L3</span><span class="plate__n">Governance &amp; tools</span></div>
+          <div class="plate" data-l="2" style="--c:var(--memory);--i:2"><span class="plate__k">L2</span><span class="plate__n">Memory</span></div>
+          <div class="plate" data-l="1" style="--c:var(--models);--i:1"><span class="plate__k">L1</span><span class="plate__n">Providers</span></div>
+          <div class="plate" data-l="0" style="--c:#94a3b8;--i:0"><span class="plate__k">L0</span><span class="plate__n">Foundation</span></div>
+        </div>
+      </div>
+      <div class="explode__side">
+        <button type="button" class="btn btn--primary btn--sm" id="explode-toggle" aria-pressed="false">Explode stack</button>
+        <div class="explode__list" role="group" aria-label="Choose a layer"><button type="button" data-layer="6" aria-pressed="false">L6 · Surfaces</button><button type="button" data-layer="5" aria-pressed="false">L5 · Agents</button><button type="button" data-layer="4" aria-pressed="false">L4 · Runtime</button><button type="button" data-layer="3" aria-pressed="false">L3 · Governance &amp; tools</button><button type="button" data-layer="2" aria-pressed="false">L2 · Memory</button><button type="button" data-layer="1" aria-pressed="false">L1 · Providers</button><button type="button" data-layer="0" aria-pressed="false">L0 · Foundation</button></div>
+        <div class="card explode__detail" id="explode-detail" aria-live="polite">
+          <p class="flow__step" id="ex-k">Layer 4</p>
+          <h3 id="ex-t">Runtime</h3>
+          <p id="ex-d">Engine, decomposer, swarm and scheduler. Goals become tasks here.</p>
+          <p class="ex-paths" id="ex-p"></p>
+        </div>
+      </div>
+    </div>
+    <p class="src-note">Layers 0–5 follow the repo README's "Architecture (summary)". Layer 6 groups the operator surfaces (dashboard and CLI).</p>
+  </div>
+</section>
+
+<!-- ============ MODEL ROUTING ============ -->
+<section class="section" id="routing" aria-labelledby="routing-h">
+  <div class="wrap">
+    <p class="eyebrow">Model routing explainer</p>
+    <h2 id="routing-h" class="h-xl">Cheap and local first. <span class="muted">Fallback when needed.</span></h2>
+    <p class="lead narrow">Pick a situation and watch which route a request takes. Telemetry is recorded per route, so you can see where the tokens went.</p>
+    <div class="route" id="route">
+      <div class="route__picks" role="radiogroup" aria-label="Situation">
+        <button type="button" role="radio" aria-checked="true" data-r="local">Ollama is running</button>
+        <button type="button" role="radio" aria-checked="false" data-r="fallback">Local route unavailable</button>
+      </div>
+      <div class="route__map card">
+        <div class="rnode rnode--req"><b>Request</b><span>from runtime</span></div>
+        <div class="rwire" aria-hidden="true"><i></i></div>
+        <div class="rnode rnode--router"><b>Router</b><span>picks a route</span></div>
+        <div class="route__forks">
+          <div class="rbranch" data-b="local"><div class="rwire" aria-hidden="true"><i></i></div><div class="rnode" style="--c:var(--models)"><b>Cheap route</b><span>qwen2.5:1.5b · Ollama · 127.0.0.1</span></div></div>
+          <div class="rbranch" data-b="fallback"><div class="rwire" aria-hidden="true"><i></i></div><div class="rnode" style="--c:var(--runtime)"><b>Fallback</b><span>Mercury 2 · remote provider</span></div></div>
+        </div>
+        <div class="rnode rnode--tele"><b>Telemetry</b><span id="route-tele">route=cheap · prompt / completion tokens logged</span></div>
+      </div>
+      <p class="src-note" id="route-note">Simplified. The real routing rules live in the code (PR #271: token telemetry + Qwen2.5 1.5B local route). The fallback route sends the prompt to a remote provider, so it is not local-only.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TERMINAL (FLAGSHIP) ============ -->
+<section class="section section--term" id="terminal" aria-labelledby="term-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-terminal-1600.webp" srcset="assets/art-terminal-800.webp 800w, assets/art-terminal-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: a wireframe cube above a glowing cyan grid"></div>
+  <div class="wrap">
+    <p class="eyebrow">See it think</p>
+    <h2 id="term-h" class="h-xl">One terminal. <span class="muted">Five sessions.</span></h2>
+    <p class="lead narrow">Pick a scenario and watch the agent route, ask, wait for approval, refuse and remember. The side panel lights up whichever part of the system is working.</p>
+
+    <div class="term-tabs" role="tablist" aria-label="Session scenarios" id="term-tabs">
+      <button role="tab" aria-selected="true" data-s="ask" id="tab-ask" aria-controls="term-out">Ask a question</button>
+      <button role="tab" aria-selected="false" data-s="tool" id="tab-tool" aria-controls="term-out" tabindex="-1">Run a tool</button>
+      <button role="tab" aria-selected="false" data-s="attack" id="tab-attack" aria-controls="term-out" tabindex="-1">Blocked attack</button>
+      <button role="tab" aria-selected="false" data-s="memory" id="tab-memory" aria-controls="term-out" tabindex="-1">Remember</button>
+      <button role="tab" aria-selected="false" data-s="algo" id="tab-algo" aria-controls="term-out" tabindex="-1">Algorand query</button>
+    </div>
+
+    <div class="term-layout">
+      <div class="term" id="term">
+        <div class="term__chrome">
+          <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="term__title">kudbee — agent session — 127.0.0.1</span>
+          <span class="term__badge">Illustrative</span>
+        </div>
+        <div class="term__body" id="term-body" tabindex="0" aria-label="Terminal transcript, scrollable">
+          <pre id="term-out" role="tabpanel" aria-live="off"></pre>
+        </div>
+        <div class="term__ctrl" role="group" aria-label="Playback controls">
+          <button type="button" class="tbtn" id="t-play" aria-label="Pause">❚❚</button>
+          <button type="button" class="tbtn" id="t-replay" aria-label="Replay">↺</button>
+          <button type="button" class="tbtn" id="t-speed" aria-label="Playback speed 1x" aria-pressed="false">1×</button>
+          <button type="button" class="tbtn tbtn--wide" id="t-skip">Skip to end</button>
+          <span class="term__prog" aria-hidden="true"><span id="t-prog"></span></span>
+        </div>
+      </div>
+
+      <aside class="term-side card" aria-label="Active system part">
+        <p class="term-side__h">System activity</p>
+        <ul class="parts" id="parts">
+          <li data-p="dashboard" style="--c:var(--dashboard)"><span></span>Dashboard</li>
+          <li data-p="runtime" style="--c:var(--runtime)"><span></span>Agent runtime</li>
+          <li data-p="tools" style="--c:var(--tools)"><span></span>Tools &amp; plugins</li>
+          <li data-p="models" style="--c:var(--models)"><span></span>Local models</li>
+          <li data-p="memory" style="--c:var(--memory)"><span></span>Memory</li>
+          <li data-p="security" style="--c:var(--security)"><span></span>Security gate</li>
+        </ul>
+        <div class="mini-cube" id="mini-cube" aria-hidden="true">
+          <div class="mc"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </aside>
+    </div>
+    <p class="disclaimer" role="note"><strong>Illustrative session. Output is scripted, not live.</strong> Commands, IDs, token counts and balances are invented sample values shown to explain behavior. They are not measurements.</p>
+  </div>
+</section>
+
+<!-- ============ PRODUCT WALKTHROUGH (placeholder until real footage exists) ============ -->
+<section class="section" id="walkthrough" aria-labelledby="walk-h">
+  <div class="wrap">
+    <p class="eyebrow">Product walkthrough</p>
+    <h2 id="walk-h" class="h-xl">The dashboard, <span class="muted">in motion.</span></h2>
+    <p class="lead narrow">A recorded tour of the local dashboard will live here. Until there is real footage, this frame stays empty on purpose.</p>
+    <figure class="device">
+      <div class="device__bar" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="device__url">127.0.0.1:3000</span></div>
+      <div class="device__screen">
+        <!-- TODO founder: drop dashboard.mp4 here → assets/video/dashboard.mp4 (H.264, muted), then set data-has-video="true" below.
+             With the flag on, the page checks the file exists and autoplays it muted and looping (controls only under reduced motion).
+             The flag avoids a 404 probe on every visit while there is no footage. -->
+        <video id="walk-video" data-has-video="false" muted loop playsinline preload="none" width="1600" height="1000" hidden aria-label="Dashboard walkthrough video"></video>
+        <div class="walk-ph" id="walk-ph">
+          <div class="walk-ph__skel" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <p class="walk-ph__label"><span class="badge b-planned">Coming soon</span><strong>Dashboard walkthrough coming soon</strong><span>Placeholder frame. No footage yet, and nothing here is a recording.</span></p>
+        </div>
+      </div>
+      <figcaption class="src-note">The skeleton above is an abstract placeholder, not a screenshot of the product.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ SECURITY ============ -->
+<section class="section" id="security" aria-labelledby="sec-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-security-1600.webp" srcset="assets/art-security-800.webp 800w, assets/art-security-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: a solid rose cube inside a wireframe shield sphere with orbit rings"></div>
+  <div class="wrap">
+    <p class="eyebrow">Security-first design</p>
+    <h2 id="sec-h" class="h-xl">Default deny, <span class="muted">by design.</span></h2>
+    <div class="grid3 grid3--sec">
+      <div class="card reveal"><span class="ico" aria-hidden="true">⌂</span><h3>Loopback only</h3><p>The dashboard binds to 127.0.0.1. Host and Origin headers are checked, so a random web page cannot drive your agent over WebSocket.</p></div>
+      <div class="card reveal"><span class="ico" aria-hidden="true">✋</span><h3>Approval gates</h3><p>Side effects pass admission first. Tools without a declared permission level default to RESTRICTED. A human approves risky actions.</p></div>
+      <div class="card reveal"><span class="ico" aria-hidden="true">⌘</span><h3>No shell by default</h3><p><code>shell_exec</code> ships disabled. File tools are confined to the workspace, and paths outside it are refused.</p></div>
+      <div class="card reveal"><span class="ico" aria-hidden="true">≡</span><h3>Append-only ledger</h3><p>The action ledger and audit logs only grow. ADR 027 proposes hash-chained, signed audit rows next.</p></div>
+      <div class="card reveal"><span class="ico" aria-hidden="true">◎</span><h3>Evidence labels</h3><p>Claims are labeled simulated, inferred, verified or physically measured. CI never promotes anything to "live verified" on its own.</p></div>
+      <div class="card reveal"><span class="ico" aria-hidden="true">⇄</span><h3>Provider independence</h3><p>No provider SDKs in runtime code. Models swap through config, and no new external service is added without an accepted ADR.</p></div>
+    </div>
+    <div class="attack card" id="attack">
+      <div class="attack__head">
+        <h3>Try to break in <span class="badge b-planned">Simulated</span></h3>
+        <p>Pick an attack. Each one is checked by a real control described in the repo. The animation is scripted.</p>
+      </div>
+      <div class="attack__picks" role="group" aria-label="Attack type">
+        <button type="button" data-a="ws">Cross-origin WebSocket</button>
+        <button type="button" data-a="shell">Run a shell command</button>
+        <button type="button" data-a="path">Escape the workspace</button>
+        <button type="button" data-a="token">Run without a token</button>
+      </div>
+      <div class="attack__lane" aria-hidden="true">
+        <span class="attack__src">Attacker</span>
+        <span class="attack__track"><i class="attack__pkt"></i></span>
+        <span class="attack__shield">🛡</span>
+        <span class="attack__dst">Agent OS</span>
+      </div>
+      <p class="attack__out" id="attack-out" aria-live="polite">Choose an attack above.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="section" id="features" aria-labelledby="feat-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-features-1600.webp" srcset="assets/art-features-800.webp 800w, assets/art-features-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: a field of small cubes, some lit, a metaphor for shipped features"></div>
+  <div class="wrap">
+    <p class="eyebrow">What exists today</p>
+    <h2 id="feat-h" class="h-xl">Features, <span class="muted">labeled honestly.</span></h2>
+    <figure class="render render--float"><img src="assets/cube-exploded-800.webp" srcset="assets/cube-exploded-400.webp 400w, assets/cube-exploded-800.webp 800w" sizes="(max-width: 900px) 70vw, 300px" width="800" height="800" loading="lazy" decoding="async" alt="The Think Box cube exploded into its 27 labeled cubelets"><figcaption>The site’s own cube, exploded. Rendered from cube.js.</figcaption></figure>
+    <div class="legend" aria-label="Legend"><span class="badge b-shipped">Shipped</span> on main · <span class="badge b-review">In review</span> open PR or draft · <span class="badge b-planned">Planned</span> not built yet</div>
+    <ul class="features">
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Governance backend</h3><p>Admission gate, action ledger and receipts behind a FastAPI control plane.</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Local operator dashboard</h3><p>Express + WebSocket web tier in <code>apps/web</code>, local-only, with Origin + Host gating (PR #290).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>KUDBEECLI phases 1–3</h3><p>Inspect, persist and REPL surfaces (PRs #178, #180 merged).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Kudbee SDK + follow-up</h3><p>Python and web SDK (PRs #177, #179 merged).</p></li>
+      <li class="feat reveal"><span class="badge b-review">In review</span><h3>Kudbee SDK wave 2</h3><p>Follow-up wave 2 (PR #181, draft).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Persistent SQLite memory</h3><p>Persistent cross-session learning on SQLite (PR #288). SQLite stays the system of record (ADR 026).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Local model routing</h3><p>Cheap route to qwen2.5:1.5b on Ollama, Mercury 2 fallback, per-route token telemetry (PRs #271, #269).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Algorand, read-only</h3><p>HERMES research lane (PR #272): six query actions with no signing. Test suite reported 54/54.</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>MCP integration</h3><p>Interactive MCP plugin discovery (PR #275, merged Sep 28). The plan doc lists install and activate as later phases.</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Approval gates + run tracking</h3><p>Mercury-2 worker agent, kudbee CLI, run tracking and approval gates (PR #269).</p></li>
+      <li class="feat reveal"><span class="badge b-shipped">Shipped</span><h3>Verification harnesses</h3><p>Mutation testing (#266), a JPL Power of 10 audit ratchet (#267) and a fault-injection chaos harness (#268).</p></li>
+      <li class="feat reveal"><span class="badge b-planned">Planned</span><h3>Think Tokens persistence</h3><p>ADR 028 (Proposed): a <code>think_tokens</code> table on SQLite once wiring is approved.</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ BUILD YOUR AGENT (illustrative configurator) ============ -->
+<section class="section" id="configure" aria-labelledby="cfg-h">
+  <div class="wrap">
+    <p class="eyebrow">Build your agent <span class="badge b-planned">Illustrative</span></p>
+    <h2 id="cfg-h" class="h-xl">Choose the route, the tools <span class="muted">and the rules.</span></h2>
+    <p class="lead narrow">Pick a model route, tools and approval rules. The diagram and the config preview update live. This explains the ideas. It is not a real Think Box file format.</p>
+    <div class="cfg">
+      <form class="cfg__form card" id="cfg-form" aria-label="Agent configurator">
+        <fieldset><legend>Model route</legend>
+          <label class="opt"><input type="radio" name="route" value="local" checked><span><b>Local only</b><small>qwen2.5:1.5b via Ollama on 127.0.0.1</small></span></label>
+          <label class="opt"><input type="radio" name="route" value="hybrid"><span><b>Local first, fallback allowed</b><small>Mercury 2 when the local route can’t serve</small></span></label>
+          <label class="opt"><input type="radio" name="route" value="fallback"><span><b>Fallback only</b><small>Mercury 2 (remote provider)</small></span></label>
+        </fieldset>
+        <fieldset><legend>Tools</legend>
+          <label class="opt"><input type="checkbox" name="tool" value="fs" checked><span><b>fs</b><small>workspace-confined file ops</small></span></label>
+          <label class="opt"><input type="checkbox" name="tool" value="http"><span><b>http</b><small>outbound requests, goes through the gate</small></span></label>
+          <label class="opt"><input type="checkbox" name="tool" value="algorand"><span><b>algorand</b><small>read-only queries, no signing</small></span></label>
+          <label class="opt opt--danger"><input type="checkbox" name="tool" value="shell"><span><b>shell_exec</b><small>off by default in Think Box</small></span></label>
+        </fieldset>
+        <fieldset><legend>Approval rule</legend>
+          <label class="opt"><input type="radio" name="rule" value="side-effects" checked><span><b>Ask before side effects</b><small>reads run, writes wait for you</small></span></label>
+          <label class="opt"><input type="radio" name="rule" value="every-call"><span><b>Ask for every tool call</b><small>maximum control</small></span></label>
+          <label class="opt"><input type="radio" name="rule" value="read-only"><span><b>Read-only</b><small>side effects are denied</small></span></label>
+        </fieldset>
+        <p class="cfg__warn" id="cfg-warn" role="alert" hidden></p>
+      </form>
+      <div class="cfg__out">
+        <div class="cfg__diagram card" id="cfg-diagram" aria-label="Live diagram of the configured agent">
+          <div class="cd-row"><span class="cd-node cd-node--agent">Agent</span></div>
+          <div class="cd-split">
+            <div class="cd-col"><span class="cd-line" aria-hidden="true"><i></i></span><span class="cd-node">Router</span><span class="cd-line" aria-hidden="true"><i></i></span>
+              <div class="cd-models"><span class="cd-chip" data-m="local" style="--c:var(--models)">qwen2.5:1.5b</span><span class="cd-chip" data-m="fallback" style="--c:var(--runtime)">Mercury 2</span></div></div>
+            <div class="cd-col"><span class="cd-line" aria-hidden="true"><i></i></span><span class="cd-node cd-node--gate" id="cd-gate">Approval gate</span><span class="cd-line" aria-hidden="true"><i></i></span>
+              <div class="cd-models cd-tools"><span class="cd-chip" data-t="fs" style="--c:var(--tools)">fs</span><span class="cd-chip" data-t="http" style="--c:var(--dashboard)">http</span><span class="cd-chip" data-t="algorand" style="--c:var(--security)">algorand</span><span class="cd-chip" data-t="shell" style="--c:#ef4444">shell_exec</span></div></div>
+          </div>
+          <div class="cd-row"><span class="cd-node cd-node--ledger">Ledger · telemetry</span></div>
+        </div>
+        <div class="cfg__json card">
+          <div class="cfg__json-head"><span class="badge b-planned">Illustrative config</span><button type="button" class="chip-btn" id="cfg-copy">Copy JSON</button></div>
+          <pre id="cfg-json" aria-live="polite"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THINK TOKENS ============ -->
+<section class="section" id="tokens" aria-labelledby="tok-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-tokens-1600.webp" srcset="assets/art-tokens-800.webp 800w, assets/art-tokens-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: a spiral of small glowing cubes rising from a core cube, a metaphor for learned patterns"></div>
+  <div class="wrap tokens">
+    <div>
+      <p class="eyebrow"><span class="badge b-planned">Planned</span> Concept</p>
+      <h2 id="tok-h" class="h-xl">Think Tokens: <span class="grad">what agents learn.</span></h2>
+      <p class="lead">In Think Box, a <strong>Think Token</strong> is a <button type="button" class="gl" data-term="think-token"><em>learning unit</em></button>: a reusable pattern an agent picks up from a session, with a confidence score and counts of how often it was reused and how often it worked.</p>
+      <p>The code exists but is not wired in. Tokens are held in memory and not saved, and the dashboard's learning panel is a simulation. ADR 028 proposes storing them in SQLite once the founder decides to connect them to agent sessions (roadmap E5).</p>
+      <figure class="render render--inline"><img src="assets/cube-memory-800.webp" srcset="assets/cube-memory-400.webp 400w, assets/cube-memory-800.webp 800w" sizes="(max-width: 900px) 70vw, 300px" width="800" height="800" loading="lazy" decoding="async" alt="The Think Box cube turned to its memory face, which is lit yellow"><figcaption>Memory face lit: where Think Tokens are planned to live.</figcaption></figure>
+      <p class="note"><strong>Not a cryptocurrency.</strong> The repo also has a strategy document for a separate economic token, but it shares only the name. Access is never decided by tokens. It comes from roles, grants and quotas. This site makes no claims about price, supply, chains or partnerships.</p>
+    </div>
+    <ol class="token-steps card" aria-label="Think Token lifecycle (planned)">
+      <li><b>Observe</b><span>An agent session finishes a task.</span></li>
+      <li><b>Distill</b><span>A pattern becomes a token with a confidence score.</span></li>
+      <li><b>Store</b><span>Saved to a local SQLite table. <em>Planned.</em></span></li>
+      <li><b>Reuse</b><span>Reuse and success counts improve the next run. <em>Planned.</em></span></li>
+    </ol>
+    <div class="anatomy" id="anatomy">
+      <div class="anatomy__tabs" role="tablist" aria-label="Compare tokens">
+        <button role="tab" aria-selected="true" id="an-tab-1" aria-controls="an-1">Think Token (learning unit)</button>
+        <button role="tab" aria-selected="false" id="an-tab-2" aria-controls="an-2" tabindex="-1">THNK (separate concept)</button>
+      </div>
+      <div class="anatomy__panel card" id="an-1" role="tabpanel" aria-labelledby="an-tab-1">
+        <p class="flow__step">Proposed fields · ADR 028 · <span class="badge b-planned">Planned</span></p>
+        <pre class="anatomy__code" aria-label="Proposed think_tokens fields"><span class="t-key">id</span>            <span class="t-dim">unique token id</span>
+<span class="t-key">type</span>          <span class="t-dim">kind of learned pattern</span>
+<span class="t-key">content</span>       <span class="t-dim">the pattern itself (no raw transcripts)</span>
+<span class="t-key">confidence</span>    <span class="t-dim">how sure the system is</span>
+<span class="t-key">reuse_count</span>   <span class="t-dim">times it was reused</span>
+<span class="t-key">success_count</span> <span class="t-dim">times reuse worked</span>
+<span class="t-key">metadata</span>      <span class="t-dim">extra context</span>
+<span class="t-key">created_at</span>    <span class="t-dim">· </span><span class="t-key">last_used_at</span>
+<span class="t-key">tenant_id</span>     <span class="t-dim">from roadmap E4</span></pre>
+        <p class="small muted">Today: the code from PR #288 keeps tokens in memory only, nothing saves them, and the pipeline is not wired into agent sessions. Wiring is an open founder decision because it changes agent prompts.</p>
+      </div>
+      <div class="anatomy__panel card" id="an-2" role="tabpanel" aria-labelledby="an-tab-2" hidden>
+        <p class="flow__step">Separate concept · not described here</p>
+        <p>The repo also contains a strategy document for an economic token called THNK. ADR 028 says it "shares a name and nothing else" with the learning unit.</p>
+        <p>ADR 027 adds a hard rule: tokens must never decide who may do what. Access comes from roles, agent grants and tenant quotas.</p>
+        <p class="small muted">This site makes no claims about THNK pricing, supply, chains, or partnerships.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROADMAP ============ -->
+<section class="section" id="roadmap" aria-labelledby="road-h">
+  <div class="sec-art" aria-hidden="false"><img src="assets/art-roadmap-1600.webp" srcset="assets/art-roadmap-800.webp 800w, assets/art-roadmap-1600.webp 1600w" sizes="(max-width: 900px) 100vw, 62vw" width="1600" height="900" loading="lazy" decoding="async" alt="Abstract render: seven cubes climbing a staircase, glowing brighter at each step"></div>
+  <div class="wrap">
+    <p class="eyebrow"><span class="badge b-planned">Proposed</span> ADR 027 · Enterprise Agent OS</p>
+    <h2 id="road-h" class="h-xl">From one founder's laptop <span class="muted">to a team-ready OS.</span></h2>
+    <p class="lead narrow">Security first, small PRs, and every phase leaves <code>main</code> deployable to loopback. All phases are planned. None are claimed as done.</p>
+    <ol class="timeline" id="timeline">
+      <li class="tl reveal"><span class="tl__k">E0</span><div><h3>CI, login and per-user identity</h3><p>Dashboard sign-in. Identity is asserted by the server, never by the client.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E1</span><div><h3>Durable governance store + audit log</h3><p>Identities, token hashes and policy versions move to SQLite. Audit rows are append-only, hash-chained and signed.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E2</span><div><h3>SSH hardening</h3><p>The worker path stops depending on root SSH.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E3</span><div><h3>RBAC + approvals</h3><p>Default deny on every route and message. Per-principal keys and server-side approval workflows.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E4</span><div><h3>Tenancy</h3><p>A tenant column behind a repository layer. Cross-tenant IDs return 404.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E5</span><div><h3>Agent registry + Think Token wiring</h3><p>Registries, plus persisted Think Tokens (ADR 028) if approved.</p><span class="badge b-planned">Planned</span></div></li>
+      <li class="tl reveal"><span class="tl__k">E6</span><div><h3>Deploy over HTTPS</h3><p>A TLS deployment, the first time the dashboard leaves loopback.</p><span class="badge b-planned">Planned</span></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ INSIDE A SINGLE BLOCK ============ -->
+<section class="section" id="block" aria-labelledby="block-h">
+  <div class="wrap">
+    <p class="eyebrow">Inside a single block</p>
+    <h2 id="block-h" class="h-xl">One cubelet, <span class="muted">four layers.</span></h2>
+    <p class="lead narrow">Pick a block, then turn it, explode it and tap a layer. Each block is one real control: the problem, how it works, the resolution and the proof.</p>
+    <div class="blk-picks" role="radiogroup" aria-label="Choose a block" id="blk-picks">
+      <button type="button" role="radio" aria-checked="true" data-b="approval" style="--c:var(--tools)">Approval gate</button>
+      <button type="button" role="radio" aria-checked="false" data-b="origin" style="--c:var(--security)">Origin check</button>
+      <button type="button" role="radio" aria-checked="false" data-b="telemetry" style="--c:var(--models)">Token telemetry</button>
+      <button type="button" role="radio" aria-checked="false" data-b="sqlite" style="--c:var(--memory)">SQLite memory</button>
+      <button type="button" role="radio" aria-checked="false" data-b="ledger" style="--c:var(--runtime)">Ledger</button>
+    </div>
+    <div class="blk">
+      <div class="blk__stage" id="blk-stage">
+        <canvas id="block-canvas" role="img" aria-label="Interactive 3D block. Drag to rotate. Use the layer buttons to inspect each layer."></canvas>
+        <img class="blk__poster" id="blk-poster" src="assets/cube-lit-800.webp" srcset="assets/cube-lit-400.webp 400w, assets/cube-lit-800.webp 800w" sizes="(max-width: 900px) 80vw, 480px" width="800" height="800" loading="lazy" decoding="async" alt="Still render of the Think Box cube with the security face lit">
+        <div class="blk__hot" id="blk-hot"></div>
+        <button type="button" class="chip-btn blk__explode" id="blk-explode" aria-pressed="false">Explode</button>
+      </div>
+      <div class="blk__side">
+        <div class="blk-layers" role="tablist" aria-label="Layers" id="blk-layers">
+          <button role="tab" aria-selected="true" data-l="0" id="bl-0" aria-controls="blk-card">Problem</button>
+          <button role="tab" aria-selected="false" data-l="1" id="bl-1" aria-controls="blk-card" tabindex="-1">How it works</button>
+          <button role="tab" aria-selected="false" data-l="2" id="bl-2" aria-controls="blk-card" tabindex="-1">Resolution</button>
+          <button role="tab" aria-selected="false" data-l="3" id="bl-3" aria-controls="blk-card" tabindex="-1">Proof</button>
+        </div>
+        <div class="blk-card card" id="blk-card" role="tabpanel" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHANGELOG ============ -->
+<section class="section" id="changelog" aria-labelledby="cl-h">
+  <div class="wrap">
+    <p class="eyebrow">Build in public · changelog</p>
+    <h2 id="cl-h" class="h-xl">Shipped, <span class="muted">one PR at a time.</span></h2>
+    <p class="lead narrow">Real merged pull requests from <code>Kudbee-Studio/think-box-ai</code>, titles and merge dates only.</p>
+    <div class="chips" role="group" aria-label="Filter by type" id="cl-filters">
+      <button type="button" aria-pressed="true" data-f="all">All</button>
+      <button type="button" aria-pressed="false" data-f="feat">feat</button>
+      <button type="button" aria-pressed="false" data-f="fix">fix</button>
+      <button type="button" aria-pressed="false" data-f="docs">docs</button>
+      <button type="button" aria-pressed="false" data-f="other">other</button>
+    </div>
+    <ol class="changelog" id="changelog-list" aria-live="polite"></ol>
+    <div class="cl-more"><button type="button" class="btn btn--ghost btn--sm" id="cl-more">Show more</button></div>
+    <p class="src-note" id="cl-src"></p>
+  </div>
+</section>
+
+<!-- ============ ADR LIBRARY ============ -->
+<section class="section" id="adrs" aria-labelledby="adr-h">
+  <div class="wrap">
+    <p class="eyebrow">Decision records</p>
+    <h2 id="adr-h" class="h-xl">Every big call, <span class="muted">written down.</span></h2>
+    <p class="lead narrow">Architecture Decision Records from <code>docs/decisions/</code>. Status is shown only where it was read from the file. The rest link to the source.</p>
+    <label class="search"><span class="sr-only">Filter ADRs</span><input type="search" id="adr-q" placeholder="Filter ADRs: neon, receipt, kilo…" autocomplete="off"></label>
+    <ul class="adrs" id="adr-list"></ul>
+    <p class="src-note" id="adr-src"></p>
+  </div>
+</section>
+
+<!-- ============ TECH STACK ORBIT ============ -->
+<section class="section" id="stack" aria-labelledby="stack-h">
+  <div class="wrap stackwrap">
+    <div>
+      <p class="eyebrow">Tech stack</p>
+      <h2 id="stack-h" class="h-xl">Boring tech, <span class="muted">on purpose.</span></h2>
+      <p class="lead">Python and TypeScript, one SQLite file, and local models. Tap a planet to see what it does.</p>
+      <ul class="stack-list" id="stack-list"></ul>
+    </div>
+    <div class="orbit" id="orbit" aria-hidden="true">
+      <div class="orbit__core"><span>Think Box</span></div>
+      <div class="orbit__ring orbit__ring--1"></div>
+      <div class="orbit__ring orbit__ring--2"></div>
+      <div class="orbit__ring orbit__ring--3"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section" id="faq" aria-labelledby="faq-h">
+  <div class="wrap faqwrap">
+    <div>
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-h" class="h-xl">Straight answers.</h2>
+      <p class="lead">If something here sounds too good, it is labeled. Ask anyway.</p>
+      <figure class="render render--inline"><img src="assets/cube-twist-800.webp" srcset="assets/cube-twist-400.webp 400w, assets/cube-twist-800.webp 800w" sizes="(max-width: 900px) 70vw, 300px" width="800" height="800" loading="lazy" decoding="async" alt="The Think Box cube mid-twist, with its top layer turned"><figcaption>Mid-twist. Every block is a real control.</figcaption></figure>
+    </div>
+    <div class="faq" id="faq-list">
+      <details><summary>Is Think Box production-ready?</summary><div class="faq__a"><p>No. The repo uses a four-state ladder: code complete → test verified → live verified → production ready. <button type="button" class="gl" data-term="hermetic">Hermetic CI</button> never promotes work to the last two on its own. The enterprise phases (E0–E6) are proposed, not done.</p></div></details>
+      <details><summary>Does my data leave my machine?</summary><div class="faq__a"><p>The dashboard binds to loopback and the cheap route runs on a local model through Ollama. The fallback route (Mercury 2) is a remote provider, so a prompt that takes that route does leave the machine.</p></div></details>
+      <details><summary>Is a Think Token a cryptocurrency?</summary><div class="faq__a"><p>No. In Think Box, a Think Token is a learning unit: a reusable pattern with a confidence score (ADR 028). It is planned, not live. A separate economic-token idea exists in the repo, and tokens never decide access.</p></div></details>
+      <details><summary>Why SQLite and not Postgres?</summary><div class="faq__a"><p>Zero config, one file, easy backups, and FTS5 covers search. A Neon setup was added and then reverted (ADR 026). ADR 027 lists measurable reopen criteria, such as multiple hosts sharing a store or sustained write contention.</p></div></details>
+      <details><summary>Who decides what gets merged?</summary><div class="faq__a"><p>Agents propose changes as single-theme pull requests. The founder reviews and merges all work.</p></div></details>
+      <details><summary>Is the terminal demo real output?</summary><div class="faq__a"><p>No. It is a scripted, illustrative session that explains behavior. Every ID, count and balance in it is a labeled sample value.</p></div></details>
+      <details><summary>Can I try it?</summary><div class="faq__a"><p>The repository is public and MIT licensed, and the README has a quick start (Python ≥ 3.10, <code>pip install -e ".[dev]"</code>). Expect a fast-moving project.</p></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BUILD IN PUBLIC ============ -->
+<section class="section" id="build" aria-labelledby="build-h">
+  <div class="wrap">
+    <div class="founder card">
+      <p class="eyebrow">Build in public</p>
+      <h2 id="build-h" class="h-lg">A note from the founder</h2>
+      <!-- TODO founder: write 2–4 short paragraphs: who you are, why local-first and governance-first, and what you want Think Box to become. -->
+      <p class="founder-slot">[Founder to write: who you are, why you are building KUDBEE, and where it goes next.]</p>
+      <p>How we work: one single-theme PR at a time. Agents propose changes, the founder reviews and merges, and the chronicle (<code>docs/CONTINUITY.md</code>) records what really happened, append-only.</p>
+      <a class="btn btn--ghost" href="https://github.com/Kudbee-Studio/think-box-ai" rel="noopener">Follow along on GitHub</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="footer" id="footer">
+  <div class="wrap">
+    <div class="sig" aria-hidden="true">
+      <svg viewBox="0 0 600 120" class="sig__svg"><defs><linearGradient id="sigg" x1="0" x2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset=".5" stop-color="#38bdf8"/><stop offset="1" stop-color="#34d399"/></linearGradient></defs>
+        <text x="50%" y="88" text-anchor="middle" class="sig__text">kudbEE</text></svg>
+    </div>
+    <p class="sig__line">Agents propose. The founder decides. Built in public.</p>
+    <div class="footer__inner">
+      <div><span class="brand__name">THINK BOX <b>AI</b></span><p class="muted small">The local-first Agent OS by kudbEE.</p></div>
+      <ul class="footer__links">
+        <li><a href="https://github.com/Kudbee-Studio/think-box-ai" rel="noopener">GitHub · Kudbee-Studio/think-box-ai</a></li>
+        <li><button type="button" class="linkish" data-open-keys>Keyboard shortcuts <kbd>?</kbd></button></li>
+        <li><span class="muted small">Think Box AI is MIT licensed. 3D powered by three.js (MIT, vendored).</span></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<div class="dialog-backdrop" id="palette" hidden>
+  <div class="palette" role="dialog" aria-modal="true" aria-labelledby="pal-label">
+    <label class="palette__in"><span id="pal-label" class="sr-only">Command palette</span><span aria-hidden="true" class="palette__icon">⌘</span>
+      <input type="text" id="pal-input" placeholder="Jump to a section or run a command…" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-autocomplete="list" autocomplete="off" spellcheck="false"></label>
+    <ul class="palette__list" id="pal-list" role="listbox" aria-label="Commands"></ul>
+    <p class="palette__foot"><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>Enter</kbd> run · <kbd>Esc</kbd> close</p>
+  </div>
+</div>
+
+<div class="dialog-backdrop" id="keys" hidden>
+  <div class="keys card" role="dialog" aria-modal="true" aria-labelledby="keys-h">
+    <div class="drawer__head"><h2 id="keys-h" class="h-lg">Keyboard shortcuts</h2><button type="button" class="icon-btn" data-close aria-label="Close shortcuts">✕</button></div>
+    <dl class="keys__list">
+      <div><dt><kbd>⌘</kbd>/<kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>Command palette</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>This overlay</dd></div>
+      <div><dt><kbd>J</kbd> / <kbd>K</kbd></dt><dd>Next / previous section</dd></div>
+      <div><dt><kbd>1</kbd>–<kbd>9</kbd></dt><dd>Jump to section</dd></div>
+      <div><dt><kbd>T</kbd></dt><dd>Toggle dark / light</dd></div>
+      <div><dt><kbd>L</kbd></dt><dd>Copy link to current section</dd></div>
+      <div><dt><kbd>M</kbd></dt><dd>Learn more about the current section</dd></div>
+      <div><dt><kbd>Esc</kbd></dt><dd>Close any overlay</dd></div>
+    </dl>
+  </div>
+</div>
+
+<div class="drawer-backdrop" id="drawer" hidden>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-h">
+    <div class="drawer__grip" aria-hidden="true"></div>
+    <div class="drawer__head"><h2 id="drawer-h" class="h-lg">Learn more</h2><button type="button" class="icon-btn" data-close aria-label="Close drawer">✕</button></div>
+    <div class="drawer__body" id="drawer-body"></div>
+  </aside>
+</div>
+
+<div class="gloss-pop" id="gloss-pop" role="tooltip" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Learn-more drawer content (one template per section id) -->
+<template id="lm-top"><h3>What is Think Box AI?</h3><p>Governed agent execution: goals decompose into tasks, tools run behind permission checks, outcomes land in layered memory and tamper-evident ledgers, and every claim carries an evidence label.</p><p>The KUDBEE control fabric (admission gates, Think Boxes, ActionLedger) keeps <b>draft/simulate</b> as the default until a valid governance token is present.</p><ul class="refs"><li><code>README.md</code></li><li><code>docs/kudbee-control-fabric.md</code></li><li><code>docs/architecture-v1.md</code></li></ul></template>
+<template id="lm-problem"><h3>Why governance first?</h3><p>The repo's agent rules put governance by default and evidence over assumptions at the core. Tools without an explicit permission level are <code>RESTRICTED</code>, and side effects pass admission.</p><ul class="refs"><li><code>AGENTS.md</code> §1</li><li><code>docs/known-defects.md</code> tracks gaps with evidence</li></ul></template>
+<template id="lm-flow"><h3>Trust boundaries in detail</h3><ol><li><b>Human → web tier.</b> Today: local-only, Host/Origin gated (PR #290). Login is deferred (PR #289) and planned for E0.</li><li><b>Web tier → governance backend.</b> A shared API key plus a server-asserted user ID. Per-principal keys are planned for E3.3.</li><li><b>Backend → worker.</b> Governed SSH with allow-listed read-only commands (PRs #282, #284). Hardening is planned for E2.</li></ol><ul class="refs"><li>ADR 027 · "Current shape and trust boundaries"</li></ul></template>
+<template id="lm-explore"><h3>Layer discipline</h3><p>Each layer only depends on the layers below it. Providers swap through config, and runtime code ships with no provider SDKs.</p><ul class="refs"><li><code>docs/architecture-v1.md</code></li><li><code>thinkbox/</code> · <code>core/</code> · <code>backend/</code> · <code>apps/web/</code></li></ul></template>
+<template id="lm-routing"><h3>Routing and telemetry</h3><p>PR #271 added token telemetry and a Qwen2.5 1.5B local route to the kudbee CLI. PR #269 added the Mercury-2 worker agent, run tracking and approval gates. PR #260 added multi-model routing with cost optimization in the orchestrator.</p><p class="muted small">This page simplifies the rules. Read the code for the exact behavior.</p><ul class="refs"><li><code>core/providers/ollama.py</code></li><li><code>backend/models/ollama_client.py</code></li></ul></template>
+<template id="lm-terminal"><h3>About the demo</h3><p>The sessions are scripted to show behavior that the repo describes: local routing (#271), approval gates (#269), Host/Origin gating and <code>shell_exec</code> off (#290), persistent learning on SQLite (#288), and the read-only Algorand lane (#272).</p><p><b>Nothing here is live output.</b> Values marked "sample" are invented.</p></template>
+<template id="lm-security"><h3>Security, by PR</h3><ul><li>#290: WebSocket Origin + Host gate, <code>shell_exec</code> off, workspace-confined file ops</li><li>#252: report model failures honestly and deny tokenless governed runs</li><li>#289: defer dashboard login, govern resume/reclaim, mount <code>/api/git</code> safely</li><li>#296: escapeHtml quote-injection fix</li></ul><p>Next, per ADR 027: default deny on every route, hash-chained signed audit, then RBAC.</p></template>
+<template id="lm-features"><h3>How badges are decided</h3><p><b>Shipped</b> means merged to <code>main</code>. It does not mean live-verified or production-ready. <b>In review</b> means an open or draft PR. <b>Planned</b> means not built yet, or proposed in an ADR.</p></template>
+<template id="lm-tokens"><h3>ADR 028 in short</h3><p>Think Tokens are not persisted yet. The proposal is a <code>think_tokens</code> table in SQLite behind a small <code>TokenStore</code> interface, added together with the wiring work (E5.3). Neon is reconsidered only if a measured reopen criterion is met.</p><p>Open founder questions: wire tokens into agent sessions at all? May thought text ever leave the host?</p></template>
+<template id="lm-roadmap"><h3>Option A: incremental hardening</h3><p>ADR 027 keeps the two tiers (Express web tier + FastAPI governance), keeps SQLite, and stays on a single node. Rejected for now: a single-runtime rewrite, external IdP or managed databases, and multi-node.</p><p>Non-goals for this arc: SSO/SAML, MFA, Postgres, HA, and token-economy features as authorization input.</p></template>
+<template id="lm-changelog"><h3>Where this list comes from</h3><p>A read-only GitHub API call listed the 60 most recently updated closed PRs, and 58 of them were merged. Only titles, numbers and merge dates are shown. Dates are in Central Time.</p><p class="muted small">This is a snapshot. Older PRs exist and are not listed.</p></template>
+<template id="lm-adrs"><h3>ADRs</h3><p>An Architecture Decision Record captures one decision: context, options, the choice, and its consequences. Some numbers repeat in the folder (for example three different 003 files). They are shown as they are in the repo.</p></template>
+<template id="lm-stack"><h3>Dependency policy</h3><p>No provider SDKs in runtime code and no new external service without an accepted ADR. That is why the stack stays small.</p><ul class="refs"><li><code>docs/project-foundation.md</code></li><li>ADR 027 · design rule 7</li></ul></template>
+<template id="lm-faq"><h3>Still curious?</h3><p>The live chronicle <code>docs/CONTINUITY.md</code> records what really happened, append-only, and it is the authoritative status.</p></template>
+
+<script type="application/json" id="pr-data">[{"n": 305, "t": "Clarify dashboard password hash configuration", "d": "2026-09-30"}, {"n": 304, "t": "docs: organize Markdown into folders and add a generated index", "d": "2026-09-30"}, {"n": 302, "t": "fix(web): update_config validation + bounded web test runtime", "d": "2026-09-30"}, {"n": 300, "t": "fix(web): resolve web-typecheck errors from #288", "d": "2026-09-30"}, {"n": 299, "t": "docs(guides): add agent PR instructions template", "d": "2026-09-30"}, {"n": 298, "t": "fix(web): terminal panel never scrolled past viewport height", "d": "2026-09-30"}, {"n": 303, "t": "feat(specialists): run contract-selected jobs", "d": "2026-09-30"}, {"n": 301, "t": "revert: remove unused Neon setup (ADR 026)", "d": "2026-09-30"}, {"n": 295, "t": "audit: Think Box productization baseline", "d": "2026-09-30"}, {"n": 297, "t": "fix(providers): async HTTP client coroutine bug + hermetic mock provider", "d": "2026-09-30"}, {"n": 296, "t": "fix(web): escapeHtml quote injection, scroll gaps, picker + re-render stability", "d": "2026-09-30"}, {"n": 294, "t": "feat(workers): add optional UPM dependency installation (LOCAL)", "d": "2026-09-30"}, {"n": 293, "t": "docs(audit): UPM package-manager integration feasibility", "d": "2026-09-30"}, {"n": 292, "t": "fix(dashboard): polish layout/scrolling, wire 6 dead panels, label demo data (replaces #291)", "d": "2026-09-29"}, {"n": 290, "t": "fix(web): WebSocket origin + Host gate, shell_exec off, workspace-confined file ops", "d": "2026-09-29"}, {"n": 289, "t": "feat(security): defer dashboard login, govern resume/reclaim, mount /api/git safely", "d": "2026-09-29"}, {"n": 288, "t": "feat(learning): implement persistent cross-session learning - Think Tokens", "d": "2026-09-29"}, {"n": 287, "t": "feat(dashboard): professional polish with workflow builder and features", "d": "2026-09-29"}, {"n": 286, "t": "feat(security): whole-dashboard sign-in + backend-authoritative UpCloud exec policy", "d": "2026-09-29"}, {"n": 285, "t": "feat(security): require dashboard sign-in for governed remote execution", "d": "2026-09-29"}, {"n": 284, "t": "feat(server): dashboard bridge to governed upcloud-ssh execution", "d": "2026-09-29"}, {"n": 283, "t": "docs(infra): record PR #282 merge and post-merge live re-verification", "d": "2026-09-29"}, {"n": 282, "t": "feat(infra): add upcloud-ssh governed execution substrate", "d": "2026-09-29"}, {"n": 281, "t": "fix(server): unshadow governed POST /api/v1/run in backend.main", "d": "2026-09-29"}, {"n": 280, "t": "fix(infra): correct upctl tooling; record live UpCloud substrate audit", "d": "2026-09-29"}, {"n": 279, "t": "docs(infra): save point — SSH provider checkpoint + backend-bridge audit", "d": "2026-09-29"}, {"n": 278, "t": "test: CI verification", "d": "2026-09-29"}, {"n": 277, "t": "research(277): Vinext-style software-factory experiment", "d": "2026-09-28"}, {"n": 276, "t": "Professional UI Polish: Enterprise-Grade Design Improvements", "d": "2026-09-28"}, {"n": 275, "t": "feat(mcp): MCP Server Integration - Interactive Plugin Discovery", "d": "2026-09-28"}, {"n": 274, "t": "test: verify local workflow synchronization", "d": "2026-09-28"}, {"n": 273, "t": "feat(agent-os): HERMES + ASCLEPIUS agent profiles, dashboard selector & terminal commands", "d": "2026-09-28"}, {"n": 272, "t": "feat(hermes): Algorand read-only research lane + recall hotfix", "d": "2026-09-28"}, {"n": 271, "t": "feat(cli): token telemetry + Qwen2.5 1.5B local route", "d": "2026-09-28"}, {"n": 270, "t": "feat(phase3): enterprise observability, rate limiting, and load testing", "d": "2026-09-27"}, {"n": 269, "t": "feat(agent-os): Mercury-2 worker agent, kudbee CLI, run tracking, approval gates", "d": "2026-09-27"}, {"n": 268, "t": "feat(verification): fault-injection chaos harness, no silent successes", "d": "2026-09-27"}, {"n": 267, "t": "feat(verification): JPL Power of 10 audit with no-new-violations ratchet", "d": "2026-09-27"}, {"n": 266, "t": "feat(verification): mutation testing (IV&V) — orchestrator mutation score 55% → 92%", "d": "2026-09-26"}, {"n": 265, "t": "docs(chronicle): record #264 merge; zero open PRs", "d": "2026-09-26"}, {"n": 264, "t": "feat(aggregation): honest multi-agent aggregation milestone — orchestrator strategies, calibration v2, durable fabric", "d": "2026-09-26"}, {"n": 255, "t": "feat(shard): sharded concurrent-goal executor (100x scale consolidation)", "d": "2026-09-26"}, {"n": 251, "t": "feat(autonomous-loop): durable action receipts + integrity endpoint (PR #251)", "d": "2026-09-26"}, {"n": 263, "t": "feat(orchestration): multi-box swarm with persistent knowledge fabric", "d": "2026-09-26"}, {"n": 262, "t": "feat(execution): autonomous governance integration with end-to-end proof", "d": "2026-09-26"}, {"n": 261, "t": "feat(governance): auditable governance layer for autonomous decision accountability", "d": "2026-09-26"}, {"n": 260, "t": "feat(orchestrator): enterprise multi-model LLM routing with cost optimization", "d": "2026-09-26"}, {"n": 259, "t": "feat(swarm): autonomous workflow integration with enterprise pool", "d": "2026-09-26"}, {"n": 258, "t": "fix(proof): reconcile Memory/Dashboard API calls — all 4 tests passing", "d": "2026-09-26"}, {"n": 256, "t": "docs(env): environment variables setup guide + model verification", "d": "2026-09-26"}, {"n": 257, "t": "feat(neon): initialize serverless Postgres configuration", "d": "2026-09-26"}, {"n": 254, "t": "test(e2e): add 1K-agent scale test and baseline metrics", "d": "2026-09-26"}, {"n": 253, "t": "fix(proofs): mark 14 invalid swarm proof artifacts as partial runs", "d": "2026-09-26"}, {"n": 252, "t": "fix(runtime): report model failures honestly and deny tokenless governed runs", "d": "2026-09-26"}, {"n": 250, "t": "feat(autonomous-loop): Autonomous Loop Actions UI panel (PR #249)", "d": "2026-09-26"}, {"n": 248, "t": "feat(autonomous-loop): add loop action recording and audit API", "d": "2026-09-26"}, {"n": 247, "t": "feat(autonomous-loop): control-plane loop management actions (PR #247)", "d": "2026-09-26"}, {"n": 246, "t": "feat(autonomous-loop): learning curve tracking + session lifecycle (PR #246)", "d": "2026-09-25"}]</script>
+<script type="application/json" id="adr-data">[{"n": "001", "slug": "cnc-manufacturing", "path": "docs/decisions/001-cnc-manufacturing.md"}, {"n": "002", "slug": "cloud-execution-substrate", "path": "docs/decisions/002-cloud-execution-substrate.md"}, {"n": "002", "slug": "kilo-env-matrix", "path": "docs/decisions/002-kilo-env-matrix.md"}, {"n": "003", "slug": "cloud-execution-durable-queue", "path": "docs/decisions/003-cloud-execution-durable-queue.md"}, {"n": "003", "slug": "kilo-substrate-checklist", "path": "docs/decisions/003-kilo-substrate-checklist.md"}, {"n": "003", "slug": "think-repository-stage-1", "path": "docs/decisions/003-think-repository-stage-1.md"}, {"n": "004", "slug": "cloud-execution-worker-orchestrator", "path": "docs/decisions/004-cloud-execution-worker-orchestrator.md"}, {"n": "004", "slug": "kilo-governance-evidence", "path": "docs/decisions/004-kilo-governance-evidence.md"}, {"n": "004", "slug": "upstash-box-auth-contract", "path": "docs/decisions/004-upstash-box-auth-contract.md"}, {"n": "005", "slug": "environmental-variables", "path": "docs/decisions/005-environmental-variables.md"}, {"n": "005", "slug": "kilo-mercury-hermetic", "path": "docs/decisions/005-kilo-mercury-hermetic.md"}, {"n": "006", "slug": "kilo-swarm-instrumentation", "path": "docs/decisions/006-kilo-swarm-instrumentation.md"}, {"n": "007", "slug": "kilo-proof-schema", "path": "docs/decisions/007-kilo-proof-schema.md"}, {"n": "008", "slug": "kilo-dashboard-slots", "path": "docs/decisions/008-kilo-dashboard-slots.md"}, {"n": "009", "slug": "kilo-live-proof-exec", "path": "docs/decisions/009-kilo-live-proof-exec.md"}, {"n": "010", "slug": "kilo-post-season-harden", "path": "docs/decisions/010-kilo-post-season-harden.md"}, {"n": "011", "slug": "kilo-live-smoke-evidence", "path": "docs/decisions/011-kilo-live-smoke-evidence.md"}, {"n": "012", "slug": "kilo-live-smoke-operator", "path": "docs/decisions/012-kilo-live-smoke-operator.md"}, {"n": "013", "slug": "kilo-control-plane-api", "path": "docs/decisions/013-kilo-control-plane-api.md"}, {"n": "014", "slug": "kilo-receipt-chain-etag", "path": "docs/decisions/014-kilo-receipt-chain-etag.md"}, {"n": "015", "slug": "kilo-dashboard-receipt-chain-bind", "path": "docs/decisions/015-kilo-dashboard-receipt-chain-bind.md"}, {"n": "016", "slug": "kilo-api-ops-harden", "path": "docs/decisions/016-kilo-api-ops-harden.md"}, {"n": "017", "slug": "kilo-end-link-deepen", "path": "docs/decisions/017-kilo-end-link-deepen.md"}, {"n": "018", "slug": "kilo-end-link-operator-ux", "path": "docs/decisions/018-kilo-end-link-operator-ux.md"}, {"n": "019", "slug": "kilo-receipt-chain-end-link-docs-audit", "path": "docs/decisions/019-kilo-receipt-chain-end-link-docs-audit.md"}, {"n": "020", "slug": "kilo-end-link-api-ops-harden", "path": "docs/decisions/020-kilo-end-link-api-ops-harden.md"}, {"n": "021", "slug": "kilo-receipt-chain-end-link-era-close", "path": "docs/decisions/021-kilo-receipt-chain-end-link-era-close.md"}, {"n": "022", "slug": "kilo-control-plane-e2e-deepen", "path": "docs/decisions/022-kilo-control-plane-e2e-deepen.md"}, {"n": "023", "slug": "kilo-governance-evidence-live-proof-readiness", "path": "docs/decisions/023-kilo-governance-evidence-live-proof-readiness.md"}, {"n": "024", "slug": "upstash-box-access-verification", "path": "docs/decisions/024-upstash-box-access-verification.md"}, {"n": "025", "slug": "trait-lab-autonomous-worker-executor", "path": "docs/decisions/025-trait-lab-autonomous-worker-executor.md"}, {"n": "026", "slug": "neon-serverless-postgres", "path": "docs/decisions/026-neon-serverless-postgres.md"}, {"n": "027", "slug": "enterprise-agent-os-architecture", "path": "docs/decisions/027-enterprise-agent-os-architecture.md"}, {"n": "028", "slug": "think-token-persistence", "path": "docs/decisions/028-think-token-persistence.md"}]</script>
+<script src="script.js" defer></script>
+</body>
+</html>
