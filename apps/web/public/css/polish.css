@@ -335,3 +335,17 @@ a.btn-secondary { text-decoration: none; display: inline-flex; align-items: cent
 .file-tree .file-tree-item small { font-size: 10px; color: var(--text-muted); }
 .file-tree .file-tree-item .file-dir { grid-column: 1 / -1; font-style: normal; font-size: 10px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-tree .file-tree-item:hover { background: rgba(22, 163, 148, 0.1); }
+/* Changes the agent made in the chosen repository. */
+.repo-changes { margin: 8px var(--spacing-lg); border: 1px solid var(--border-light); border-left: 3px solid var(--accent-primary); background: var(--bg-tertiary); font-size: 11px; }
+.repo-changes-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; }
+.repo-change { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding: 5px 8px; border-top: 1px solid var(--border-light); }
+.repo-change .change-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.change-kind { font-size: 9px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--border-light); color: var(--text-secondary); }
+.change-kind.kind-untracked, .change-kind.kind-added { color: #34d399; border-color: #34d399; }
+.change-kind.kind-deleted { color: #f87171; border-color: #f87171; }
+.change-kind.kind-modified { color: #fbbf24; border-color: #fbbf24; }
+.repo-changes button { padding: 3px 7px; border: 1px solid var(--border-light); border-radius: 3px; background: var(--bg-primary); color: var(--text-secondary); font-size: 10px; cursor: pointer; }
+.repo-changes button:hover { color: var(--accent-light); border-color: var(--accent-primary); }
+.change-diff { margin: 0; padding: 8px; max-height: 220px; overflow: auto; background: var(--bg-primary); color: var(--text-secondary); font-size: 10px; line-height: 1.4; white-space: pre; border-top: 1px solid var(--border-light); }
+.change-diff .diff-add { color: #34d399; }
+.change-diff .diff-del { color: #f87171; }
