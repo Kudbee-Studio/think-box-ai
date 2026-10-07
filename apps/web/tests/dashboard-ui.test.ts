@@ -155,7 +155,7 @@ test('the dashboard UI modules do not instantiate themselves: app.js owns constr
 });
 
 test('header toolbar icons are SVG (not emoji) and no two buttons share the same icon', () => {
-  const buttons = [...html.matchAll(/<button id="([\w-]+)" class="btn-icon"[^>]*>(<svg[\s\S]*?<\/svg>)<\/button>/g)];
+  const buttons = [...html.matchAll(/<button id="([\w-]+)" class="btn-icon"[^>]*>(<svg[\s\S]*?<\/svg>)(?:<span class="tool-label">[^<]*<\/span>)?<\/button>/g)];
   assert.ok(buttons.length >= 13, `expected the header icon buttons to use SVG, found ${buttons.length}`);
   const seen = new Map<string, string>();
   for (const [, id, svg] of buttons) {
