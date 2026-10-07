@@ -1,6 +1,7 @@
 // How healthy the saved Think Tokens are, from what is already recorded (no model, no network, read-only). One module for the dashboard card and `kudbee tokens health`.
 // It is OBSERVATIONAL: "runs that used a token and finished" says nothing about whether they would have finished without it. That is measured by the A/B experiments, not here.
 import type { ApiToken } from './think-token-reader.ts';
+import { repoTagOf } from './think-token-repo.ts';
 
 const DAY = 86_400_000;
 export const STALE_DAYS = 30;
@@ -21,6 +22,8 @@ export interface TokenHealth {
   /** Runs that used an accepted token, split by how they ended (a run that used two tokens counts twice). */
   runs_finished: number;
   runs_failed: number;
+  /** Accepted tokens learned in one repository (they are recalled only there). */
+  repo_scoped: number;
   thumbs_up: number;
   thumbs_down: number;
   challenge_pass: number;
@@ -45,6 +48,7 @@ export function tokenHealth(tokens: ApiToken[], now: number = Date.now()): Token
     stale: stale.length,
     runs_finished: accepted.reduce((n, t) => n + t.success_runs, 0),
     runs_failed: accepted.reduce((n, t) => n + t.failed_runs, 0),
+    repo_scoped: accepted.filter((t) => repoTagOf(t.tags) !== null).length,
     thumbs_up: tokens.reduce((n, t) => n + t.thumbs_up, 0),
     thumbs_down: tokens.reduce((n, t) => n + t.thumbs_down, 0),
     challenge_pass: tokens.filter((t) => t.challenge.verdict === 'pass').length,
@@ -59,7 +63,7 @@ export function tokenHealth(tokens: ApiToken[], now: number = Date.now()): Token
 /** The same numbers as plain lines, for the CLI. */
 export function formatTokenHealth(h: TokenHealth): string {
   const lines = [
-    `Think Tokens: ${h.total} saved, ${h.accepted} accepted`,
+    `Think Tokens: ${h.total} saved, ${h.accepted} accepted (${h.repo_scoped} learned in one repository, the rest general)`,
     `  used by a run: ${h.used} of ${h.accepted}   used in the last 7 days: ${h.used_7d}   waiting (not needed yet): ${h.waiting}   stale (30+ days): ${h.stale}`,
     `  runs that used a token: ${h.runs_finished} finished, ${h.runs_failed} did not   thumbs: ${h.thumbs_up} up, ${h.thumbs_down} down   challenge: ${h.challenge_pass} passed, ${h.challenge_fail} failed`,
   ];

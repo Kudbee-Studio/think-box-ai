@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { repoTag } from './think-token-repo.ts';
 import { parseRepo } from './repo-context.ts';
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
@@ -55,6 +56,9 @@ export class ActiveRepoManager {
     if (!name) return null;
     try { return this.resolve(profileId, name); } catch { return null; }
   }
+
+  /** The Think Token scope tag of the chosen repository (think-token-repo.ts), or null when none is chosen or it has no GitHub address. */
+  tag(profileId: string): string | null { return repoTag(this.active(profileId)?.repo); }
 
   /** Point the agent at a repository (saved per profile) and apply it now. */
   set(profileId: string, name: unknown): ActiveRepo {

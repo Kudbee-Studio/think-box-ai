@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T23:34:57.633Z",
+  "head": "de135396",
+  "base": "gh/main",
+  "base_sha": "c3eb3ca3",
+  "branch": "feat/pr411-p3.71-repo-fix-tokens",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 3152
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 2811
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 2696
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1515 passed, 0 failed; lines 92.81% (floor 90%)",
+      "ms": 100425
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 581022
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 300011
+    }
+  ],
+  "verdict": "PASS"
+}

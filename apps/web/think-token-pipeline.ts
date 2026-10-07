@@ -14,6 +14,7 @@
 //  - Model calls are capped per run and per day, recorded with model, latency and token counts, and the prompts are
 //    sanitized (secrets and absolute paths removed) because they leave the machine for Mercury 2.
 import { extractDrafts, type FinishedRun } from './think-token-extract.ts';
+import { withRepoTag } from './think-token-repo.ts';
 import { sanitizeForModel, scrubSecrets, type ModelMessage, type ModelResult, type TokenModels } from './think-token-model.ts';
 import { DEFAULT_KNOWN_TOOLS, LIMITS, TOKEN_KINDS, keywords, redact, type SqliteTokenStore, type TokenDraft, type TokenKind, type ThinkTokenRow } from './think-token-store.ts';
 
@@ -407,7 +408,7 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
         kind: l.kind,
         title: l.title,
         content: l.content,
-        tags: [...l.tags, ...l.tools_cited.map((t) => `tool:${t}`)].slice(0, 8),
+        tags: withRepoTag([...l.tags, ...l.tools_cited.map((t) => `tool:${t}`)].slice(0, 7), run.repo),
         evidence_ref: `run:${run.id}`,
         extractor: modelled.result.provider,
         extract_model: modelled.result.model,
@@ -417,7 +418,7 @@ export async function processFinishedRun(deps: PipelineDeps, run: FinishedRun, a
     }));
   } else {
     // No model answered: keep the deterministic template, honestly labeled. These tokens stay candidates.
-    drafts = extractDrafts(run).map((draft) => ({ draft, modelled: false }));
+    drafts = extractDrafts(run).map((draft) => ({ draft: { ...draft, tags: withRepoTag((draft.tags ?? []).slice(0, 7), run.repo) }, modelled: false }));
   }
 
   for (const { draft, modelled: wasModelled } of drafts) {
