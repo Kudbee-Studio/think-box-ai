@@ -707,7 +707,7 @@ async function chat(
   signal: AbortSignal,
   tools: typeof TOOLS = TOOLS,
   apiBaseUrl: string = cloudBaseUrl(model),
-): Promise<{ message: AgentMessage; prompt: number; completion: number }> {
+): Promise<{ message: AgentMessage; prompt: number; completion: number; billed?: number }> {
   const response = await fetch(`${apiBaseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -722,7 +722,7 @@ async function chat(
   }
   const data = (await response.json()) as {
     choices: Array<{ message: AgentMessage }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
+    usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number }; cost_in_usd_ticks?: number };
   };
   const message = data.choices?.[0]?.message;
   if (!message) {
@@ -731,9 +731,15 @@ async function chat(
   return {
     message,
     prompt: data.usage?.prompt_tokens ?? 0,
-    completion: data.usage?.completion_tokens ?? 0,
+    // Reasoning tokens are billed as output but some providers (xAI) report them apart from completion_tokens: count them, or the cost line is too low.
+    completion: (data.usage?.completion_tokens ?? 0) + (data.usage?.completion_tokens_details?.reasoning_tokens ?? 0),
+    // xAI reports what the call actually cost, in ten-billionths of a dollar: that beats any estimate.
+    ...(Number.isFinite(data.usage?.cost_in_usd_ticks) && data.usage!.cost_in_usd_ticks! >= 0 ? { billed: data.usage!.cost_in_usd_ticks! / 1e10 } : {}),
   };
 }
+
+/** The USD one call cost: what the provider billed when it says, else tokens at the (estimated) price. */
+const spend = (model: string, r: { prompt: number; completion: number; billed?: number }): number => r.billed ?? costUsd(model, r.prompt, r.completion);
 
 export async function runToolAgent(
   goal: string,
@@ -775,8 +781,8 @@ export async function runToolAgent(
       totals.steps = step;
       hooks.onThought({ type: 'reasoning', content: `Step ${step}: asking ${model}…`, status: 'thinking' });
       const startedAt = Date.now();
-      const { message, prompt, completion } = await chat(model, messages, temperature, hooks.signal, tools, hooks.apiBaseUrl);
-      const stepCost = costUsd(model, prompt, completion);
+      const { message, prompt, completion, billed } = await chat(model, messages, temperature, hooks.signal, tools, hooks.apiBaseUrl);
+      const stepCost = spend(model, { prompt, completion, billed });
       totals.prompt_tokens += prompt;
       totals.completion_tokens += completion;
       totals.tokens += prompt + completion;
@@ -815,7 +821,7 @@ export async function runToolAgent(
             totals.prompt_tokens += judged.prompt;
             totals.completion_tokens += judged.completion;
             totals.tokens += judged.prompt + judged.completion;
-            totals.cost_usd += costUsd(model, judged.prompt, judged.completion);
+            totals.cost_usd += spend(model, judged);
             return parseJudge(judged.message.content ?? '');
           };
           const first = await check(answer);
@@ -827,7 +833,7 @@ export async function runToolAgent(
             totals.prompt_tokens += retry.prompt;
             totals.completion_tokens += retry.completion;
             totals.tokens += retry.prompt + retry.completion;
-            totals.cost_usd += costUsd(model, retry.prompt, retry.completion);
+            totals.cost_usd += spend(model, retry);
             const retried = retry.message.content?.trim() || '';
             const second = retried ? await check(retried) : null;
             if (retried && second && !second.conflict) {
