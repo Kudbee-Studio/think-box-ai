@@ -18,29 +18,32 @@ after(() => { for (const k of KEYS) { if (saved[k] === undefined) delete process
 
 test('the measurement table is exactly what the evidence files say (provenance)', () => {
   const median = (xs: number[]): number => { const s = [...xs].sort((a, b) => a - b); return s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2; };
+  type Row = { model: string; category: string; wall_ms: number; tokens: number; cost_usd: number };
+  const load = (files: string[], model: string): Row[] => files.flatMap((src) => (JSON.parse(fs.readFileSync(path.join(repoRoot, src), 'utf8')) as { rows: Row[] }).rows.filter((r) => (MEASUREMENT_ALIASES[r.model] ?? r.model) === model));
   for (const m of CLOUD_MEASUREMENTS) {
-    const rows: Array<{ model: string; category: string; wall_ms: number; tokens: number }> = [];
-    for (const src of m.sources) {
-      const d = JSON.parse(fs.readFileSync(path.join(repoRoot, src), 'utf8')) as { rows: typeof rows };
-      rows.push(...d.rows.filter((r) => (MEASUREMENT_ALIASES[r.model] ?? r.model) === m.model));
-    }
-    assert.equal(rows.length, m.tasks, `${m.model} tasks`);
-    assert.equal(rows.filter((r) => r.category === 'success').length, m.success, `${m.model} success`);
-    assert.equal(Math.round(median(rows.map((r) => r.wall_ms))), m.median_ms, `${m.model} median ms`);
-    assert.equal(Math.round(median(rows.map((r) => r.tokens))), m.median_tokens, `${m.model} median tokens`);
+    const pooled = load(m.sources, m.model);
+    assert.equal(pooled.length, m.tasks, `${m.model} tasks`);
+    assert.equal(pooled.filter((r) => r.category === 'success').length, m.success, `${m.model} success`);
+    const cost = load(m.cost_sources, m.model);
+    assert.equal(cost.length, 27, `${m.model} P3.57 rows`);
+    assert.equal(Math.round(median(cost.map((r) => r.cost_usd)) * 1e6) / 1e6, m.median_usd, `${m.model} median usd`);
+    assert.equal(Math.round(median(cost.map((r) => r.wall_ms))), m.median_ms, `${m.model} median ms`);
+    assert.equal(Math.round(median(cost.map((r) => r.tokens))), m.median_tokens, `${m.model} median tokens`);
+    assert.ok(m.cost_sources.every((c) => m.sources.includes(c)), 'cost sources are among the sources');
   }
 });
 
-test('ranking: eligible models by estimated cost per task, so Mercury, then DeepSeek, then xAI', () => {
-  const r = rankCloudModels(['grok-4.3', 'deepseek-flash', 'mercury-2']);
-  assert.deepEqual(r.map((x) => x.model), ['mercury-2', 'deepseek-flash', 'grok-4.3']);
-  assert.match(r[0]!.reason, /39\/39 verified fixes.*per task \(estimated price\)/);
-  const c = (m: string) => estCostPerTask(CLOUD_MEASUREMENTS.find((x) => x.model === m)!)!;
-  assert.ok(c('mercury-2') < c('deepseek-flash') && c('deepseek-flash') < c('grok-4.3'));
+test('ranking: eligible models by measured cost per task: Mercury, DeepSeek, grok-build-0.1, grok-4.3, grok-4.7', () => {
+  const r = rankCloudModels(['grok-4.7', 'grok-4.3', 'grok-build-0.1', 'deepseek-flash', 'mercury-2']);
+  assert.deepEqual(r.map((x) => x.model), ['mercury-2', 'deepseek-flash', 'grok-build-0.1', 'grok-4.3', 'grok-4.7']);
+  assert.match(r[0]!.reason, /64\/66 verified fixes.*\$0\.0021 per task \(tokens at the provider price list\)/);
+  assert.match(r[3]!.reason, /\(provider-billed\)/); assert.match(r[1]!.reason, /\(tokens at an estimated price\)/);
+  const c = (m: string) => estCostPerTask(CLOUD_MEASUREMENTS.find((x) => x.model === m)!);
+  assert.ok(c('mercury-2') < c('deepseek-flash') && c('deepseek-flash') < c('grok-build-0.1') && c('grok-build-0.1') < c('grok-4.3') && c('grok-4.3') < c('grok-4.7'));
 });
 
 test('ranking: a model below the rule or never measured goes after the qualified ones, and says so', () => {
-  const table: CloudMeasurement[] = [{ model: 'mercury-2', tasks: 10, success: 10, median_ms: 1, median_tokens: 1000, sources: [] }, { model: 'deepseek-flash', tasks: 30, success: 20, median_ms: 1, median_tokens: 1000, sources: [] }, { model: 'grok-4.3', tasks: 30, success: 30, median_ms: 9000, median_tokens: 1000, sources: [] }];
+  const table: CloudMeasurement[] = [{ model: 'mercury-2', tasks: 10, success: 10, median_usd: 0.001, median_ms: 1, median_tokens: 1000, cost_basis: 'provider-billed', sources: [], cost_sources: [] }, { model: 'deepseek-flash', tasks: 30, success: 20, median_usd: 0.001, median_ms: 1, median_tokens: 1000, cost_basis: 'provider-billed', sources: [], cost_sources: [] }, { model: 'grok-4.3', tasks: 30, success: 30, median_usd: 0.001, median_ms: 9000, median_tokens: 1000, cost_basis: 'provider-billed', sources: [], cost_sources: [] }];
   const r = rankCloudModels(['mercury-2', 'deepseek-flash', 'grok-4.3', 'newcomer'], table);
   assert.deepEqual(r.map((x) => x.model), ['grok-4.3', 'mercury-2', 'deepseek-flash', 'newcomer']);
   assert.match(r[1]!.reason, /below the 90% over 20 tasks rule/); assert.match(r[3]!.reason, /never measured/);
@@ -49,7 +52,7 @@ test('ranking: a model below the rule or never measured goes after the qualified
 
 test('the default agent model is the best-ranked configured one, and routing can be turned off', () => {
   assert.equal(defaultAgentModel(), null);
-  process.env.XAI_API_KEY = 'x'; assert.equal(defaultAgentModel(), 'grok-4.3');
+  process.env.XAI_API_KEY = 'x'; assert.equal(defaultAgentModel(), 'grok-build-0.1', 'the cheapest measured xAI model');
   process.env.DEEPSEEK_API_KEY = 'd'; assert.equal(defaultAgentModel(), 'deepseek-flash', 'cheaper than xAI');
   process.env.INCEPTION_API_KEY = 'i'; assert.equal(defaultAgentModel(), 'mercury-2');
   assert.equal(defaultAgentModel({ KUDBEE_CLOUD_ROUTING: 'off' }), 'mercury-2', 'registry order');

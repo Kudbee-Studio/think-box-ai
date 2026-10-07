@@ -1,0 +1,459 @@
+{
+  "generated_at": "2026-10-07T07:42:53.635Z",
+  "plan": "docs/evidence/p3.57-cost-per-task/PLAN.md",
+  "tasks_sha256": "0001b6110dfa02d415ad500a7895d34d3326564784dba1c3887cbc86d942fa08",
+  "models": [
+    "mercury-2"
+  ],
+  "tasks": [
+    "H01",
+    "H02",
+    "H03",
+    "H04",
+    "H05",
+    "H06",
+    "H07",
+    "H08",
+    "H09",
+    "H10",
+    "H11",
+    "H12"
+  ],
+  "note": "real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder's instruction; one trial per cell, default sampling",
+  "preflight": [
+    {
+      "id": "H01",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H02",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H03",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H04",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H05",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H06",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H07",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H08",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H09",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H10",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H11",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "H12",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    }
+  ],
+  "validity": {
+    "v0_preflight": true,
+    "v1_independent_agreement": true,
+    "v1_checked": 12,
+    "v2_integrity": true,
+    "v3_all_terminal": true,
+    "v4_same_input": true,
+    "v5_hygiene": true
+  },
+  "cloud_spend_usd_at_mercury_rates": 0.02893,
+  "by_model": [
+    {
+      "model": "mercury-2",
+      "provider": "cloud API (OpenAI-compatible)",
+      "trials": 1,
+      "n": 12,
+      "success": 11,
+      "success_ci95": [
+        0.65,
+        0.99
+      ],
+      "verified_flagged": 0,
+      "proposal_wrong": 1,
+      "no_proposal": 0,
+      "no_proposal_reasons": {},
+      "median_wall_s": 2.7,
+      "tokens": 93517,
+      "tool_calls": 53,
+      "cost_usd": 0.02893,
+      "success_tasks": [
+        "H01",
+        "H02",
+        "H03",
+        "H04",
+        "H05",
+        "H06",
+        "H07",
+        "H08",
+        "H09",
+        "H11",
+        "H12"
+      ]
+    }
+  ],
+  "best_local": "(none)",
+  "decision_by_pre_registered_rule": "n/a: no local model in this run (the rule applies to local models only)",
+  "mercury_sanity": "SUSPECT: mercury-2 reached only 11/12",
+  "rows": [
+    {
+      "model": "mercury-2",
+      "task": "H01",
+      "trial": 1,
+      "kind": "one-based pages, symptom only",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/paginate.js"
+      ],
+      "patch": "diff --git a/apps/web/src/paginate.js b/apps/web/src/paginate.js\nindex 19a5d29..ed94895 100644\n--- a/apps/web/src/paginate.js\n+++ b/apps/web/src/paginate.js\n@@ -1,5 +1,5 @@\n function paginate(items, page, size) {\n-  const start = page * size;\n+  const start = (page - 1) * size;\n   return items.slice(start, start + size);\n }\n function pageCount(items, size) {\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2553,
+      "tokens": 7362,
+      "tool_calls": 4,
+      "cost_usd": 0.002227,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix pagination off-by-one: pages start at 1, so calculate start offset as (page - 1) * size.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H02",
+      "trial": 1,
+      "kind": "sort: direction, tie-break and no mutation",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/rank.js"
+      ],
+      "patch": "diff --git a/apps/web/src/rank.js b/apps/web/src/rank.js\nindex dcb3685..5a6cf4a 100644\n--- a/apps/web/src/rank.js\n+++ b/apps/web/src/rank.js\n@@ -1,4 +1,11 @@\n function rank(players) {\n-  return players.sort((a, b) => a.score - b.score);\n+  // Return a new array sorted by descending score, then by name A-Z.\n+  return [...players].sort((a, b) => {\n+    if (a.score !== b.score) {\n+      return b.score - a.score; // higher scores first\n+    }\n+    // scores equal, sort by name alphabetically\n+    return a.name.localeCompare(b.name);\n+  });\n }\n module.exports = { rank };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2737,
+      "tokens": 6478,
+      "tool_calls": 4,
+      "cost_usd": 0.002042,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fixed rank to not mutate input and sort by descending score then name.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H03",
+      "trial": 1,
+      "kind": "defaults override the caller and mutate",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/options.js"
+      ],
+      "patch": "diff --git a/apps/web/src/options.js b/apps/web/src/options.js\nindex 776ef12..d238737 100644\n--- a/apps/web/src/options.js\n+++ b/apps/web/src/options.js\n@@ -1,5 +1,5 @@\n const DEFAULTS = { retries: 3, verbose: false };\n function withDefaults(opts) {\n-  return Object.assign(opts, DEFAULTS);\n+  return Object.assign({}, DEFAULTS, opts);\n }\n module.exports = { withDefaults, DEFAULTS };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2392,
+      "tokens": 6524,
+      "tool_calls": 4,
+      "cost_usd": 0.001962,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Change withDefaults to return a new object with defaults applied, preserving caller values and avoiding mutation.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H04",
+      "trial": 1,
+      "kind": "cache key ignores later arguments",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/memo.js"
+      ],
+      "patch": "diff --git a/apps/web/src/memo.js b/apps/web/src/memo.js\nindex 2a6f972..ab1bc10 100644\n--- a/apps/web/src/memo.js\n+++ b/apps/web/src/memo.js\n@@ -1,7 +1,7 @@\n function memoize(fn) {\n   const cache = new Map();\n   return (...args) => {\n-    const key = args[0];\n+    const key = JSON.stringify(args);\n     if (!cache.has(key)) cache.set(key, fn(...args));\n     return cache.get(key);\n   };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2270,
+      "tokens": 6901,
+      "tool_calls": 4,
+      "cost_usd": 0.002069,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix memoize to use all arguments as cache key by stringifying the args array.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H05",
+      "trial": 1,
+      "kind": "async: promises not awaited",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/loader.js"
+      ],
+      "patch": "diff --git a/apps/web/src/loader.js b/apps/web/src/loader.js\nindex e3503c1..6f3cff9 100644\n--- a/apps/web/src/loader.js\n+++ b/apps/web/src/loader.js\n@@ -1,4 +1,4 @@\n async function loadAll(ids, fetchOne) {\n-  return ids.map((id) => fetchOne(id));\n+  return Promise.all(ids.map((id) => fetchOne(id)));\n }\n module.exports = { loadAll };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2081,
+      "tokens": 6235,
+      "tool_calls": 4,
+      "cost_usd": 0.00182,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Update loadAll to await all fetchOne promises using Promise.all, returning resolved results instead of promise objects.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H06",
+      "trial": 1,
+      "kind": "regex too permissive",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/validate.js"
+      ],
+      "patch": "diff --git a/apps/web/src/validate.js b/apps/web/src/validate.js\nindex be8a835..c57c5ff 100644\n--- a/apps/web/src/validate.js\n+++ b/apps/web/src/validate.js\n@@ -1,5 +1,5 @@\n function isEmail(s) {\n-  return /^[^@\\s]+@[^@\\s]+$/.test(s);\n+  return /^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(s);\n }\n function isPhone(s) {\n   return /^\\d{10}$/.test(s);\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2953,
+      "tokens": 7472,
+      "tool_calls": 4,
+      "cost_usd": 0.002451,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Require a dot in the domain part of email by updating the regex.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H07",
+      "trial": 1,
+      "kind": "rename across two files (two edits)",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/greeting.js",
+        "apps/web/src/users.js"
+      ],
+      "patch": "diff --git a/apps/web/src/greeting.js b/apps/web/src/greeting.js\nindex 3d6a6a1..36acd4b 100644\n--- a/apps/web/src/greeting.js\n+++ b/apps/web/src/greeting.js\n@@ -1,6 +1,6 @@\n-const { fetchUser } = require('./users.js');\n+const { getUser } = require('./users.js');\n function greetUser(id) {\n-  const u = fetchUser(id);\n+  const u = getUser(id);\n   return u ? 'hi ' + u.name : 'hi stranger';\n }\n module.exports = { greetUser };\ndiff --git a/apps/web/src/users.js b/apps/web/src/users.js\nindex a087fcf..ffea54c 100644\n--- a/apps/web/src/users.js\n+++ b/apps/web/src/users.js\n@@ -1,5 +1,5 @@\n const USERS = { 1: { name: \"ann\" }, 2: { name: \"bob\" } };\n-function fetchUser(id) {\n+function getUser(id) {\n   return USERS[id] || null;\n }\n-module.exports = { fetchUser };\n+module.exports = { getUser };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 3184,
+      "tokens": 11645,
+      "tool_calls": 6,
+      "cost_usd": 0.003586,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Rename fetchUser to getUser in definition, export, import, and calls.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H08",
+      "trial": 1,
+      "kind": "LRU: reading must refresh recency",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/lru.js"
+      ],
+      "patch": "diff --git a/apps/web/src/lru.js b/apps/web/src/lru.js\nindex 559fcce..bf89198 100644\n--- a/apps/web/src/lru.js\n+++ b/apps/web/src/lru.js\n@@ -1,7 +1,11 @@\n class Lru {\n   constructor(cap) { this.cap = cap; this.map = new Map(); }\n   get(key) {\n-    return this.map.get(key);\n+    if (!this.map.has(key)) return undefined;\n+    const value = this.map.get(key);\n+    this.map.delete(key);\n+    this.map.set(key, value);\n+    return value;\n   }\n   set(key, value) {\n     this.map.delete(key);\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 3377,
+      "tokens": 11014,
+      "tool_calls": 6,
+      "cost_usd": 0.003375,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Refreshes entry on get to mark as recently used, fixing eviction of recently read items.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H09",
+      "trial": 1,
+      "kind": "modulo missing",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/duration.js"
+      ],
+      "patch": "diff --git a/apps/web/src/duration.js b/apps/web/src/duration.js\nindex 9f9886c..1910bf9 100644\n--- a/apps/web/src/duration.js\n+++ b/apps/web/src/duration.js\n@@ -1,7 +1,8 @@\n function formatDuration(total) {\n   const h = Math.floor(total / 3600);\n-  const m = Math.floor(total / 60);\n-  const s = total;\n+  const remaining = total % 3600;\n+  const m = Math.floor(remaining / 60);\n+  const s = remaining % 60;\n   return h + 'h ' + m + 'm ' + s + 's';\n }\n module.exports = { formatDuration };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2447,
+      "tokens": 7133,
+      "tool_calls": 4,
+      "cost_usd": 0.002281,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix formatDuration to correctly compute minutes and seconds using modulo operations.",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H10",
+      "trial": 1,
+      "kind": "missing validation (new behaviour)",
+      "state": "PARTIAL",
+      "outcome": "partial",
+      "category": "proposal_wrong",
+      "reason": null,
+      "verified": false,
+      "flags": [],
+      "files": [
+        "apps/web/src/age.js"
+      ],
+      "patch": "diff --git a/apps/web/src/age.js b/apps/web/src/age.js\nindex 401dccd..6409faa 100644\n--- a/apps/web/src/age.js\n+++ b/apps/web/src/age.js\n@@ -1,4 +1,8 @@\n function parseAge(text) {\n-  return Number(text);\n+  const n = Number(text);\n+  if (!Number.isFinite(n) || n < 0 || n > 150) {\n+    throw new RangeError('invalid age');\n+  }\n+  return n;\n }\n module.exports = { parseAge };\n",
+      "independent": 1,
+      "agrees": true,
+      "wall_ms": 2741,
+      "tokens": 7542,
+      "tool_calls": 4,
+      "cost_usd": 0.002489,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Update parseAge to validate input and throw RangeError with message containing 'invalid age' for non-numeric, negative, or >150 values.",
+      "error": "verification failed"
+    },
+    {
+      "model": "mercury-2",
+      "task": "H11",
+      "trial": 1,
+      "kind": "symptom only, bug among distractors",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/cart.js"
+      ],
+      "patch": "diff --git a/apps/web/src/cart.js b/apps/web/src/cart.js\nindex 2354407..63fa06b 100644\n--- a/apps/web/src/cart.js\n+++ b/apps/web/src/cart.js\n@@ -1,6 +1,6 @@\n const { applyDiscount } = require('./discount.js');\n function subtotal(items) {\n-  return items.reduce((sum, it) => sum + it.price, 0);\n+  return items.reduce((sum, it) => sum + it.price * (it.qty || 1), 0);\n }\n function total(items, code) {\n   return applyDiscount(subtotal(items), code);\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2890,
+      "tokens": 8282,
+      "tool_calls": 5,
+      "cost_usd": 0.002444,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix subtotal to account for quantity by multiplying price by qty (default 1).",
+      "error": null
+    },
+    {
+      "model": "mercury-2",
+      "task": "H12",
+      "trial": 1,
+      "kind": "mutates its input",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/lists.js"
+      ],
+      "patch": "diff --git a/apps/web/src/lists.js b/apps/web/src/lists.js\nindex 1e447d6..613b835 100644\n--- a/apps/web/src/lists.js\n+++ b/apps/web/src/lists.js\n@@ -1,5 +1,7 @@\n function removeAt(list, index) {\n-  list.splice(index, 1);\n-  return list;\n+  // Create a shallow copy to avoid mutating the original list\n+  const newList = list.slice();\n+  newList.splice(index, 1);\n+  return newList;\n }\n module.exports = { removeAt };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 2419,
+      "tokens": 6929,
+      "tool_calls": 4,
+      "cost_usd": 0.002187,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Make removeAt return a new list without mutating the input by operating on a shallow copy.",
+      "error": null
+    }
+  ]
+}

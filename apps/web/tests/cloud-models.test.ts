@@ -45,7 +45,7 @@ test('configured models and the default follow which keys are set', () => {
   process.env.INCEPTION_API_KEY = 'i'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash']);
   assert.equal(defaultAgentModel(), 'mercury-2', 'Mercury stays the default when both are set');
   process.env.XAI_API_KEY = 'x'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash', 'grok-4.3', 'grok-4.7', 'grok-build-0.1']);
-  delete process.env.INCEPTION_API_KEY; delete process.env.DEEPSEEK_API_KEY; assert.equal(defaultAgentModel(), 'grok-4.3', 'xAI alone is enough');
+  delete process.env.INCEPTION_API_KEY; delete process.env.DEEPSEEK_API_KEY; assert.equal(defaultAgentModel(), 'grok-build-0.1', 'xAI alone is enough: its cheapest measured model');
 });
 
 test('grok-4.3 and deepseek-flash have a price, so a budget can count it; an unknown model still costs nothing', () => {

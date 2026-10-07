@@ -1,0 +1,562 @@
+{
+  "generated_at": "2026-10-07T07:51:33.361Z",
+  "plan": "docs/evidence/p3.57-cost-per-task/PLAN.md",
+  "tasks_sha256": "6eadb56a071161892691e87beec22b40dcfe23371c5014d28bb5ca3ebe9b41af",
+  "models": [
+    "grok-4.7"
+  ],
+  "tasks": [
+    "T01",
+    "T02",
+    "T03",
+    "T04",
+    "T05",
+    "T06",
+    "T07",
+    "T08",
+    "T09",
+    "T10",
+    "T11",
+    "T12",
+    "T13",
+    "T14",
+    "T15"
+  ],
+  "note": "real models, real governed tools, real sandbox, throwaway fixture repositories; approvals granted by the script on the founder's instruction; one trial per cell, default sampling",
+  "preflight": [
+    {
+      "id": "T01",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T02",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T03",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T04",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T05",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T06",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T07",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T08",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T09",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T10",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T11",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T12",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T13",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T14",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    },
+    {
+      "id": "T15",
+      "before": 1,
+      "after": 0,
+      "ok": true
+    }
+  ],
+  "validity": {
+    "v0_preflight": true,
+    "v1_independent_agreement": true,
+    "v1_checked": 15,
+    "v2_integrity": true,
+    "v3_all_terminal": true,
+    "v4_same_input": true,
+    "v5_hygiene": true
+  },
+  "cloud_spend_usd_at_mercury_rates": 0.17702,
+  "by_model": [
+    {
+      "model": "grok-4.7",
+      "provider": "cloud API (OpenAI-compatible)",
+      "cost_note": "cost_usd is tokens priced with Mercury's rates, not this provider's: use the token counts",
+      "trials": 1,
+      "n": 15,
+      "success": 15,
+      "success_ci95": [
+        0.8,
+        1
+      ],
+      "verified_flagged": 0,
+      "proposal_wrong": 0,
+      "no_proposal": 0,
+      "no_proposal_reasons": {},
+      "median_wall_s": 5.5,
+      "tokens": 174592,
+      "tool_calls": 64,
+      "cost_usd": 0.17702,
+      "success_tasks": [
+        "T01",
+        "T02",
+        "T03",
+        "T04",
+        "T05",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T10",
+        "T11",
+        "T12",
+        "T13",
+        "T14",
+        "T15"
+      ]
+    }
+  ],
+  "best_local": "(none)",
+  "decision_by_pre_registered_rule": "n/a: no local model in this run (the rule applies to local models only)",
+  "mercury_sanity": "not run",
+  "rows": [
+    {
+      "model": "grok-4.7",
+      "task": "T01",
+      "trial": 1,
+      "kind": "typo, file named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/greeter.js"
+      ],
+      "patch": "diff --git a/apps/web/src/greeter.js b/apps/web/src/greeter.js\nindex 2165c46..790db20 100644\n--- a/apps/web/src/greeter.js\n+++ b/apps/web/src/greeter.js\n@@ -1,4 +1,4 @@\n function greet(name) {\n-  return 'helo ' + name;\n+  return 'hello ' + name;\n }\n module.exports = { greet };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5507,
+      "tokens": 11616,
+      "tool_calls": 5,
+      "cost_usd": 0.013136,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix greet() so it returns 'hello' instead of the typo 'helo'.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T02",
+      "trial": 1,
+      "kind": "off by one, file named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/sum.js"
+      ],
+      "patch": "diff --git a/apps/web/src/sum.js b/apps/web/src/sum.js\nindex 7d6dc00..55c2934 100644\n--- a/apps/web/src/sum.js\n+++ b/apps/web/src/sum.js\n@@ -1,6 +1,6 @@\n function sumTo(n) {\n   let total = 0;\n-  for (let i = 1; i < n; i++) {\n+  for (let i = 1; i <= n; i++) {\n     total += i;\n   }\n   return total;\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 4244,
+      "tokens": 8473,
+      "tool_calls": 3,
+      "cost_usd": 0.008762,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix sumTo so the loop includes n, making sumTo(5) return 15 instead of 10.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T03",
+      "trial": 1,
+      "kind": "wrong operator, file not named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/math.js"
+      ],
+      "patch": "diff --git a/apps/web/src/math.js b/apps/web/src/math.js\nindex 8209553..747670c 100644\n--- a/apps/web/src/math.js\n+++ b/apps/web/src/math.js\n@@ -1,5 +1,5 @@\n function add(a, b) {\n-  return a - b;\n+  return a + b;\n }\n function multiply(a, b) {\n   return a * b;\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5018,
+      "tokens": 11177,
+      "tool_calls": 4,
+      "cost_usd": 0.009946,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix add so it returns the sum of its arguments instead of their difference.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T04",
+      "trial": 1,
+      "kind": "boundary, file not named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/age.js"
+      ],
+      "patch": "diff --git a/apps/web/src/age.js b/apps/web/src/age.js\nindex 6f15761..b3d3a4c 100644\n--- a/apps/web/src/age.js\n+++ b/apps/web/src/age.js\n@@ -1,4 +1,4 @@\n function isAdult(age) {\n-  return age > 18;\n+  return age >= 18;\n }\n module.exports = { isAdult };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 4817,
+      "tokens": 11457,
+      "tool_calls": 4,
+      "cost_usd": 0.012654,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Treat age 18 as adult by comparing with >= instead of >, so isAdult(18) returns true.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T05",
+      "trial": 1,
+      "kind": "missing return",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/total.js"
+      ],
+      "patch": "diff --git a/apps/web/src/total.js b/apps/web/src/total.js\nindex 376af91..1d7a916 100644\n--- a/apps/web/src/total.js\n+++ b/apps/web/src/total.js\n@@ -3,5 +3,6 @@ function total(items) {\n   for (const item of items) {\n     sum += item;\n   }\n+  return sum;\n }\n module.exports = { total };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5587,
+      "tokens": 11863,
+      "tool_calls": 5,
+      "cost_usd": 0.013398,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Return the accumulated sum from total so total([1, 2, 3]) is 6 and total([]) is 0.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T06",
+      "trial": 1,
+      "kind": "wrong default value",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/price.js"
+      ],
+      "patch": "diff --git a/apps/web/src/price.js b/apps/web/src/price.js\nindex 7ed9e37..ad15126 100644\n--- a/apps/web/src/price.js\n+++ b/apps/web/src/price.js\n@@ -1,4 +1,4 @@\n-function withTax(price, rate = 0.2) {\n+function withTax(price, rate = 0.25) {\n   return price * (1 + rate);\n }\n module.exports = { withTax };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5889,
+      "tokens": 11768,
+      "tool_calls": 4,
+      "cost_usd": 0.011576,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Set the default tax rate in withTax from 20% to 25% so withTax(100) returns 125.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T07",
+      "trial": 1,
+      "kind": "case sensitivity",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/names.js"
+      ],
+      "patch": "diff --git a/apps/web/src/names.js b/apps/web/src/names.js\nindex b64f1c7..dc5f0c9 100644\n--- a/apps/web/src/names.js\n+++ b/apps/web/src/names.js\n@@ -1,4 +1,4 @@\n function sameName(a, b) {\n-  return a === b;\n+  return a.toLowerCase() === b.toLowerCase();\n }\n module.exports = { sameName };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5328,
+      "tokens": 11502,
+      "tool_calls": 4,
+      "cost_usd": 0.012776,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Compare names case-insensitively so sameName('Ann', 'ann') is true.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T08",
+      "trial": 1,
+      "kind": "index bug",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/last.js"
+      ],
+      "patch": "diff --git a/apps/web/src/last.js b/apps/web/src/last.js\nindex 2495741..023e416 100644\n--- a/apps/web/src/last.js\n+++ b/apps/web/src/last.js\n@@ -1,4 +1,4 @@\n function last(arr) {\n-  return arr[arr.length];\n+  return arr[arr.length - 1];\n }\n module.exports = { last };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 6363,
+      "tokens": 11761,
+      "tool_calls": 5,
+      "cost_usd": 0.01109,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix last() so it returns the final element instead of undefined by indexing arr.length - 1.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T09",
+      "trial": 1,
+      "kind": "swapped arguments",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/ratio.js"
+      ],
+      "patch": "diff --git a/apps/web/src/ratio.js b/apps/web/src/ratio.js\nindex 0591fd0..f98e6b7 100644\n--- a/apps/web/src/ratio.js\n+++ b/apps/web/src/ratio.js\n@@ -2,6 +2,6 @@ function divide(a, b) {\n   return a / b;\n }\n function ratio(x, y) {\n-  return divide(y, x);\n+  return divide(x, y);\n }\n module.exports = { divide, ratio };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 6153,
+      "tokens": 11412,
+      "tool_calls": 4,
+      "cost_usd": 0.010516,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "ratio was dividing y by x, so ratio(10, 4) returned 0.4. Pass the arguments in order so it returns x / y.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T10",
+      "trial": 1,
+      "kind": "search among several files",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/strings.js"
+      ],
+      "patch": "diff --git a/apps/web/src/strings.js b/apps/web/src/strings.js\nindex dfe1404..7056cc3 100644\n--- a/apps/web/src/strings.js\n+++ b/apps/web/src/strings.js\n@@ -1,5 +1,5 @@\n function capitalize(s) {\n-  return s[0].toUpperCase() + s.slice(2);\n+  return s[0].toUpperCase() + s.slice(1);\n }\n function reverse(s) {\n   return s.split('').reverse().join('');\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5202,
+      "tokens": 11504,
+      "tool_calls": 4,
+      "cost_usd": 0.013204,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix capitalize so it uppercases the first character and keeps the rest of the string, instead of dropping the second character via slice(2).",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T11",
+      "trial": 1,
+      "kind": "two files, bug in the one not named",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/money.js"
+      ],
+      "patch": "diff --git a/apps/web/src/money.js b/apps/web/src/money.js\nindex 624a339..50df3c1 100644\n--- a/apps/web/src/money.js\n+++ b/apps/web/src/money.js\n@@ -1,4 +1,4 @@\n function toCents(dollars) {\n-  return Math.round(dollars * 10);\n+  return Math.round(dollars * 100);\n }\n module.exports = { toCents };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 8926,
+      "tokens": 18896,
+      "tool_calls": 6,
+      "cost_usd": 0.018352,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "toCents multiplied dollars by 10 instead of 100, so formatPrice(1.5) became $0.15. Multiply by 100 so cents convert correctly.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T12",
+      "trial": 1,
+      "kind": "edge case",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/avg.js"
+      ],
+      "patch": "diff --git a/apps/web/src/avg.js b/apps/web/src/avg.js\nindex c2ae92f..a2a8c8f 100644\n--- a/apps/web/src/avg.js\n+++ b/apps/web/src/avg.js\n@@ -3,6 +3,7 @@ function average(xs) {\n   for (const x of xs) {\n     sum += x;\n   }\n+  if (xs.length === 0) return 0;\n   return sum / xs.length;\n }\n module.exports = { average };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5232,
+      "tokens": 11224,
+      "tool_calls": 4,
+      "cost_usd": 0.010008,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "average([]) currently divides by zero and returns NaN. Return 0 when the list is empty.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T13",
+      "trial": 1,
+      "kind": "add a function",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/mathx.js"
+      ],
+      "patch": "diff --git a/apps/web/src/mathx.js b/apps/web/src/mathx.js\nindex 68287cd..56099ef 100644\n--- a/apps/web/src/mathx.js\n+++ b/apps/web/src/mathx.js\n@@ -1,4 +1,7 @@\n function triple(n) {\n   return n * 3;\n }\n-module.exports = { triple };\n+function double(n) {\n+  return n * 2;\n+}\n+module.exports = { triple, double };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 5329,
+      "tokens": 8371,
+      "tool_calls": 3,
+      "cost_usd": 0.009938,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Add double(n) that returns n times 2 and export it alongside triple.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T14",
+      "trial": 1,
+      "kind": "missing export",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/util.js"
+      ],
+      "patch": "diff --git a/apps/web/src/util.js b/apps/web/src/util.js\nindex 128216e..319fbb4 100644\n--- a/apps/web/src/util.js\n+++ b/apps/web/src/util.js\n@@ -4,4 +4,4 @@ function trim(s) {\n function slugify(s) {\n   return s.trim().toLowerCase().split(' ').join('-');\n }\n-module.exports = { trim };\n+module.exports = { trim, slugify };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 6135,
+      "tokens": 12113,
+      "tool_calls": 5,
+      "cost_usd": 0.011078,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Export slugify from apps/web/src/util.js so require() returns it and the slug test can call it.",
+      "error": null
+    },
+    {
+      "model": "grok-4.7",
+      "task": "T15",
+      "trial": 1,
+      "kind": "only the first match is replaced",
+      "state": "COMPLETED",
+      "outcome": "success",
+      "category": "success",
+      "reason": null,
+      "verified": true,
+      "flags": [],
+      "files": [
+        "apps/web/src/spaces.js"
+      ],
+      "patch": "diff --git a/apps/web/src/spaces.js b/apps/web/src/spaces.js\nindex 195fe82..1b4a1f2 100644\n--- a/apps/web/src/spaces.js\n+++ b/apps/web/src/spaces.js\n@@ -1,4 +1,4 @@\n function removeSpaces(s) {\n-  return s.replace(' ', '');\n+  return s.replace(/ /g, '');\n }\n module.exports = { removeSpaces };\n",
+      "independent": 0,
+      "agrees": true,
+      "wall_ms": 6036,
+      "tokens": 11455,
+      "tool_calls": 4,
+      "cost_usd": 0.010586,
+      "approvals": 1,
+      "repo_clean": true,
+      "summary": "Fix removeSpaces so every space is removed, not only the first one.",
+      "error": null
+    }
+  ]
+}
