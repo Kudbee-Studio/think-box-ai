@@ -1,5 +1,6 @@
 // Workspace confinement past symlinks and races, update_config limits, and private-network requests.
 // Boots the REAL server.ts on random loopback ports (never 3000); no external network.
+import { workspaceOf } from './helpers/workspace-path.ts';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -63,7 +64,7 @@ async function connect(s: Server): Promise<Client> {
   };
   const init = await next(['init']);
   const approvals: string[] = [];
-  const workspace = path.join(s.workspaces, init.data.sessionId);
+  const workspace = await workspaceOf(s.url, s.workspaces, init.data.sessionId);
   fs.mkdirSync(workspace, { recursive: true });
   return {
     sessionId: init.data.sessionId,

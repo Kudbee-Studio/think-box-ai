@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T12:46:28.348Z",
+  "head": "e203b297",
+  "base": "gh/main",
+  "base_sha": "c4078b18",
+  "branch": "feat/pr400-p3.60-persistent-workspace",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "fail",
+      "detail": "exit 1: > tsgo --noEmit --noUnusedLocals |  | server.ts(270,7): error TS6133: 'SESSION_ID_RE' is declared but its value is never read. (full log /home/domin/.cache/kudbee-gates/logs/lint.log)",
+      "ms": 1335
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1308
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1462
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1457 passed, 0 failed; lines 92.62% (floor 90%)",
+      "ms": 57801
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 33 on base, 0 new",
+      "ms": 280475
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 140938
+    }
+  ],
+  "verdict": "FAIL"
+}
