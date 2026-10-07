@@ -34,8 +34,7 @@ import type {
   PluginInput,
   PluginResult,
   SessionConfigInput,
-  Task,
-  Thought,
+  Task, Thought,
   WsMessage,
 } from './types.ts';
 import { errorMessage } from './types.ts';
