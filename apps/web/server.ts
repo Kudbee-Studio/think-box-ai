@@ -267,7 +267,6 @@ const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
 
-const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Interactive sessions share one persistent workspace per profile; a specialist Think Box keeps its own folder; older session folders still resolve to themselves (workspace-resolver.ts).
 const workspaces = createWorkspaceResolver({ root: workspaceRoot, activeProfile: () => profileManager.getActiveId() });
 const prunedWorkspaces = workspaces.pruneEmpty(); if (prunedWorkspaces) console.log(`   Workspace: removed ${prunedWorkspaces} empty session folder(s) left by earlier versions`);
