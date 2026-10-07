@@ -28,3 +28,14 @@ test('list_files skips .git and node_modules', async () => {
   fs.mkdirSync(path.join(root, 'src')); fs.writeFileSync(path.join(root, 'src', 'a.js'), 'x');
   assert.deepEqual((await listWorkspace(root)).map((f) => f.path), ['src/a.js']);
 });
+
+test('.git is refused in any letter case and through a symlink', () => {
+  assert.throws(() => repoFilePath(root, '.GIT/config'), /\.git folder/);
+  assert.throws(() => repoFilePath(root, 'x/.Git/hooks/pre-commit'), /\.git folder/);
+  fs.symlinkSync(path.join(root, '.git'), path.join(root, 'sneaky'));
+  assert.throws(() => repoFilePath(root, 'sneaky/HEAD'), /\.git folder/);
+});
+
+test('a root with a trailing separator behaves the same', () => {
+  assert.equal(repoFilePath(`${root}${path.sep}`, 'src/a.js'), path.join(root, 'src', 'a.js'));
+});

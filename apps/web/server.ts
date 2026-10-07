@@ -1160,16 +1160,14 @@ export class AgentSession {
     pending.resolve(approved);
   }
 
-  private agentRoot(): string { return activeRepos.active(profileManager.getActiveId())?.root ?? sessionWorkspace(this.id); }
-
   /** The hooks every tool run gets: workspace confinement, approvals, budget, memory. The worker agent and the local recipes share them. */
   private agentHooks(record: RunRecord, signal: AbortSignal, profile?: (typeof AGENT_PROFILES)[string]): AgentHooks {
+    const repo = activeRepos.active(profileManager.getActiveId()); // chosen once per run: a click mid-run must not split reads from writes
     return {
       // With "use for agent" on, the agent's file tools work inside that repository so a fix lands where `git diff` shows it.
-      workspace: this.agentRoot(),
+      workspace: repo ? repo.root : sessionWorkspace(this.id),
       resolvePath: (relativePath) => {
         // The agent's file tools must not follow a symlink out (e.g. one inside a cloned repository).
-        const repo = activeRepos.active(profileManager.getActiveId());
         const destination = repo ? repoFilePath(repo.root, relativePath) : safeWorkspacePath(this.id, relativePath);
         assertRealInsideSync(repo ? repo.root : sessionWorkspace(this.id), destination);
         return destination;
