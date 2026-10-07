@@ -177,6 +177,17 @@ describe('Think Tokens view: data honesty', () => {
     assert.match(m.html, /Real signals from this browser session only/);
   });
 
+  it('shows a health card from the server counts, and says it is not a measurement of benefit', () => {
+    const { open, msg } = setup();
+    const m = open();
+    const health = { total: 4, by_status: { accepted: 3, rejected: 1 }, accepted: 3, used: 2, used_7d: 1, waiting: 1, stale: 1, runs_finished: 5, runs_failed: 1, thumbs_up: 0, thumbs_down: 0, challenge_pass: 3, challenge_fail: 1, top_used: [], stale_ids: [], note: 'Counts only. Whether tokens make runs better is measured by the A/B experiments, not by this card.' };
+    msg('think_tokens', { tokens: [TOKEN(1)], ledger: { ok: true, entries: 1 }, health });
+    const card = text(m.querySelector('.tt-health'));
+    assert.match(card, /3accepted/); assert.match(card, /2\/3used by a run/); assert.match(card, /5\/6runs finished/); assert.match(card, /measured by the A\/B experiments/);
+    msg('think_tokens', { tokens: [TOKEN(1)], ledger: { ok: true, entries: 1 } });
+    assert.equal(text(m.querySelector('.tt-health')), '', 'no health in the message: the card is empty, never invented');
+  });
+
   it('merged view: one header button, no separate Tokens modal or panel script, and the old panel file is gone', () => {
     assert.equal((indexHtml.match(/id="think-token-button"/g) ?? []).length, 1);
     assert.doesNotMatch(indexHtml, /think-tokens-open|think-tokens-modal|think-tokens-panel\.js|🎫 Learning/);

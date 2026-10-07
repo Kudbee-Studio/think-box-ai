@@ -66,7 +66,7 @@ import { embedderState, ensureEmbeddings, peekEmbedder } from './think-token-emb
 import { createLiveStateClassifier } from './evidence.ts';
 import { TOKEN_HEADER, ensureLocalToken, tokensMatch } from './local-token.ts';
 import { createTokenModels } from './think-token-model.ts';
-import { readTokenCube, readTokens } from './think-token-reader.ts';
+import { readTokenCube, readHealth, readTokens } from './think-token-reader.ts';
 import { resolveLocalModel } from './local-model.ts';
 import { validateTokenMessage } from './think-token-ws.ts';
 import { SPECIALISTS, selectSpecialists, validateComposition } from './specialist-contracts.ts';
@@ -2074,7 +2074,7 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
             break;
           }
           if (req.type === 'think_tokens_list') {
-            ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: readTokens(tokenStore, { query: req.query, status: req.status, limit: req.limit, run_id: req.run_id }), ledger: tokenStore.verifyLedger() } }));
+            ws.send(JSON.stringify({ type: 'think_tokens', data: { tokens: readTokens(tokenStore, { query: req.query, status: req.status, limit: req.limit, run_id: req.run_id }), ledger: tokenStore.verifyLedger(), health: readHealth(tokenStore) } }));
             break;
           }
           // Every mutation needs the same human approval the agent loop uses; denial and timeout change nothing.

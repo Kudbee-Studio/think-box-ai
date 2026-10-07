@@ -286,3 +286,11 @@
 .tt-dock .tt-cube-panel { margin-top: 0.25rem; }
 .tt-dock .tt-gridrow { grid-template-columns: repeat(10, minmax(0, 1fr)); }
 .tt-dock .tt-rowlabel { display: none; }
+
+/* Token health card */
+.tt-health { margin-bottom: 10px; }
+.tt-health-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px; }
+.tt-health-cell { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 1px solid var(--border-light); border-radius: 6px; background: var(--bg-tertiary); }
+.tt-health-cell strong { font-size: 15px; color: var(--text-primary); }
+.tt-health-cell span { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
+.tt-health-note { margin-top: 6px; font-size: 10px; color: var(--text-muted); }

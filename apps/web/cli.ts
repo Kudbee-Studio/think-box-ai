@@ -17,7 +17,8 @@ import { modeLabel, type ConvoyState } from './convoy.ts';
 import { matchRecipe } from './local-recipes.ts';
 import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model.ts';
 import { loadMeasurements, pickMeasured } from './measured-routing.ts';
-import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
+import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readHealth, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
+import { formatTokenHealth } from './think-token-health.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
@@ -484,6 +485,7 @@ ${c.bold('MODELS & AGENTS')}
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
   ${c.dim("kudbee run '<goal>'")}  one-shot goal (same as kudbee '<goal>'); ${c.dim("kudbee --agent hermes '<goal>'")} uses an agent lane
   ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
+  ${c.dim('kudbee tokens health [--json]')}  how many tokens are used, waiting or stale
   ${c.dim('kudbee token cube <TT-id> [--events] [--json]')}  the token's 100-cell grid (ASCII) and its recent cell changes
   ${c.dim('kudbee tokens show <TT-id> [--json]')}  one token: lesson, score breakdown, run, ledger receipt
 
@@ -1152,6 +1154,7 @@ function tokensCommand(args: string[]): number {
       console.log(json ? JSON.stringify(token, null, 2) : formatTokenDetail(token));
       return 0;
     }
+    if (sub === 'health') { const h = readHealth(store); console.log(json ? JSON.stringify(h, null, 2) : formatTokenHealth(h)); return 0; }
     if (sub === 'cube') {
       const id = rest[0];
       if (!id) { console.log(c.red('usage: kudbee token cube <TT-id> [--events] [--json]')); return 2; }
@@ -1195,7 +1198,7 @@ function tokensCommand(args: string[]): number {
       }
       return 0;
     }
-    console.log(c.red('usage: kudbee tokens list|show <TT-id>|links <TT-id> [--json]'));
+    console.log(c.red('usage: kudbee tokens list|show <TT-id>|links <TT-id>|health [--json]'));
     return 2;
   } finally {
     store.close();
