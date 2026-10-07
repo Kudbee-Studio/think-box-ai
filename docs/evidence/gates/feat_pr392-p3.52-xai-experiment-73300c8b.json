@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T00:14:11.041Z",
+  "head": "73300c8b",
+  "base": "gh/main",
+  "base_sha": "e6b77f0c",
+  "branch": "feat/pr392-p3.52-xai-experiment",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1311
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1462
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1428
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1427 passed, 0 failed; lines 92.54% (floor 90%)",
+      "ms": 56020
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 521453
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 271374
+    }
+  ],
+  "verdict": "PASS"
+}
