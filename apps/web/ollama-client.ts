@@ -54,7 +54,7 @@ export function createModelClients({ ollamaBaseUrl, janusBaseUrl, janusEnabled }
   }
 
   async function listModels(): Promise<OllamaTag[]> {
-    const cloud = configuredCloudModels().map((m) => ({ name: m.name, provider: m.provider, agent: true }));
+    const cloud = configuredCloudModels().map((m) => ({ name: m.name, provider: m.provider, vendor: m.vendor, agent: true }));
     return [...cloud, ...(await listOllamaModels())];
   }
 

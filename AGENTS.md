@@ -3700,3 +3700,11 @@ The Phase 3 roadmap (item 4) asks for a committed, redacted receipt/artifact/che
 - **Speed:** median 6.7 s per hard row (Mercury 2.6 s, DeepSeek 5.1 s).
 - **Not shown / limits:** nothing about real repositories or local models; one run; unseeded; xAI cost not computed; xAI is not yet a selectable dashboard model (that is a separate PR after the DeepSeek one).
 
+### 2026-10-07 — P3.53: xAI (grok-4.3) is a selectable cloud worker agent too (branch feat/pr393-p3.53-xai-model)
+- **Why:** the founder has an xAI key and asked for it on the dashboard after P3.52 measured it (15 of 15 easy, 22 of 24 hard).
+- **Built:** a third entry in the `CLOUD_MODELS` registry (`grok-4.3`, provider `xai`, `XAI_API_KEY`, optional `XAI_BASE_URL`, default `https://api.x.ai/v1`). It shows on the dashboard as a Worker Agent (the list now carries a `vendor` so the label is not hard-coded per provider), in the CLI `/models`, SIMULATE's agent model, `/api/health` (`xai_configured`) and `/api/monitor` (monitor checks now loop over the non-Mercury registry entries). Mercury stays the default when set, then DeepSeek, then xAI.
+- **Cost:** `grok-4.3` is priced at an **estimate** ($3 in / $15 out per million tokens), not read from xAI's price page, so budgets err on the side of stopping early. The live check below cost $0.0056 for 1,847 tokens at that rate.
+- **Checked live:** one call through `runToolAgent` with only `XAI_API_KEY` set returned success with 1,847 tokens (not the dashboard UI).
+- **Tests (+1, in `tests/cloud-models.test.ts`, which also covers the third entry):** registry, configured models and the default with only xAI set, price, the xAI endpoint and key against a local stub, the missing-key message, the dashboard list with vendors.
+- **Not shown / limits:** not exercised in the dashboard UI (no browser); price is an estimate; xAI's tool calling is proven only on the SIMULATE tasks and one trivial goal.
+
