@@ -1,7 +1,7 @@
 // Health, monitoring and dashboard stats routes. Moved out of server.ts unchanged; the live objects they read come in as `deps`.
 import os from 'node:os';
 import type { Express, Response } from 'express';
-import { cloudModel, inceptionConfigured } from '../agent.ts';
+import { CLOUD_MODELS, inceptionConfigured } from '../agent.ts';
 import { SDK_VERSION, loadConfigFromEnv } from '../sdk/index.ts';
 import { errorMessage } from '../types.ts';
 import type { MemoryStore } from '../memory.ts';
@@ -72,6 +72,7 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
       plugins: plugins.size,
       inception_configured: inceptionConfigured(),
       deepseek_configured: Boolean(process.env.DEEPSEEK_API_KEY),
+      xai_configured: Boolean(process.env.XAI_API_KEY),
       sdk_version: SDK_VERSION,
       dry_run: sdkConfig.dryRun,
       uptime_seconds: Math.floor((Date.now() - serverStartedAt) / 1000),
@@ -93,9 +94,8 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
       ...(inceptionConfigured()
         ? [monitorEndpoint('Inception Mercury 2', 'https://api.inceptionlabs.ai/v1/models', { Authorization: `Bearer ${process.env.INCEPTION_API_KEY}` })]
         : []),
-      ...(process.env.DEEPSEEK_API_KEY
-        ? [monitorEndpoint('DeepSeek', `${process.env.DEEPSEEK_BASE_URL || cloudModel('deepseek-flash')!.baseUrlDefault}/models`, { Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}` })]
-        : []),
+      ...CLOUD_MODELS.filter((m) => m.provider !== 'inception' && process.env[m.keyEnv])
+        .map((m) => monitorEndpoint(m.vendor, `${process.env[m.baseUrlEnv] || m.baseUrlDefault}/models`, { Authorization: `Bearer ${process.env[m.keyEnv]}` })),
     ]);
     monitorAgent.checks += 1;
     monitorAgent.last_check = new Date().toISOString();

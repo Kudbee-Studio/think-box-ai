@@ -13,17 +13,19 @@ import { REPO_TOOLS, repoRead, repoRoot, repoSearch, validateRepoReadArgs, valid
 import { MEDICATION_ACTIONS, MEDICATION_SECTIONS, medicationQuery, validateMedicationInput } from './medication.ts';
 
 /** A cloud model the worker agent can run on. Both speak the OpenAI-compatible chat API; only the endpoint, the key and the price differ. */
-export interface CloudModel { name: string; provider: 'inception' | 'deepseek'; vendor: string; keyEnv: string; baseUrlEnv: string; baseUrlDefault: string }
+export interface CloudModel { name: string; provider: 'inception' | 'deepseek' | 'xai'; vendor: string; keyEnv: string; baseUrlEnv: string; baseUrlDefault: string }
 export const CLOUD_MODELS: CloudModel[] = [
   { name: 'mercury-2', provider: 'inception', vendor: 'Inception', keyEnv: 'INCEPTION_API_KEY', baseUrlEnv: 'INCEPTION_BASE_URL', baseUrlDefault: 'https://api.inceptionlabs.ai/v1' },
   { name: 'deepseek-flash', provider: 'deepseek', vendor: 'DeepSeek', keyEnv: 'DEEPSEEK_API_KEY', baseUrlEnv: 'DEEPSEEK_BASE_URL', baseUrlDefault: 'https://api.deepseek.com/v1' },
+  { name: 'grok-4.3', provider: 'xai', vendor: 'xAI', keyEnv: 'XAI_API_KEY', baseUrlEnv: 'XAI_BASE_URL', baseUrlDefault: 'https://api.x.ai/v1' },
 ];
 const MERCURY = CLOUD_MODELS[0]!;
 
-// USD per million tokens. mercury-2: Inception price list (/v1/models). deepseek-flash: a conservative ESTIMATE (above DeepSeek's published rates for its chat model), so budgets err on the side of stopping early; replace with the exact rate from DeepSeek's price page.
+// USD per million tokens. mercury-2: Inception price list (/v1/models). deepseek-flash and grok-4.3: conservative ESTIMATES (not read from the providers' price pages), so budgets err on the side of stopping early; replace with the exact rates.
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'mercury-2': { input: 0.25, output: 0.75 },
   'deepseek-flash': { input: 0.30, output: 1.20 },
+  'grok-4.3': { input: 3.00, output: 15.00 },
 };
 
 export function costUsd(model: string, promptTokens: number, completionTokens: number): number {

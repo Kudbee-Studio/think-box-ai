@@ -6,7 +6,7 @@ import { after, before, beforeEach, test } from 'node:test';
 import { CLOUD_MODELS, cloudConfigured, cloudModel, configuredCloudModels, costUsd, defaultAgentModel, inceptionConfigured, isCloudModel, providerOf, runToolAgent, type AgentHooks } from '../agent.ts';
 import { createModelClients } from '../ollama-client.ts';
 
-const KEYS = ['INCEPTION_API_KEY', 'DEEPSEEK_API_KEY', 'INCEPTION_BASE_URL', 'DEEPSEEK_BASE_URL'] as const;
+const KEYS = ['INCEPTION_API_KEY', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'INCEPTION_BASE_URL', 'DEEPSEEK_BASE_URL', 'XAI_BASE_URL'] as const;
 const saved: Record<string, string | undefined> = {};
 before(() => { for (const k of KEYS) saved[k] = process.env[k]; });
 beforeEach(() => { for (const k of KEYS) delete process.env[k]; });
@@ -28,9 +28,10 @@ async function stub(status = 200): Promise<{ base: string; seen: Seen[]; close: 
 }
 const hooks = (): AgentHooks => ({ signal: new AbortController().signal, workspace: '/tmp', resolvePath: (r: string) => r, onThought: () => {}, onEvent: () => {}, onFilesChanged: () => {}, checkBudget: () => null, approvedDomains: new Set(), requestApproval: async () => true, remember: async () => ({ id: 'x' }), recall: async () => ({ backend: 't', results: [] }), rssFeed: async () => ({ items: [] }) } as unknown as AgentHooks);
 
-test('the registry lists Mercury-2 first and DeepSeek second, each with its own key and endpoint variables', () => {
-  assert.deepEqual(CLOUD_MODELS.map((m) => [m.name, m.provider, m.keyEnv]), [['mercury-2', 'inception', 'INCEPTION_API_KEY'], ['deepseek-flash', 'deepseek', 'DEEPSEEK_API_KEY']]);
-  assert.ok(isCloudModel('deepseek-flash') && isCloudModel('mercury-2'));
+test('the registry lists Mercury-2, DeepSeek and xAI, each with its own key and endpoint variables', () => {
+  assert.deepEqual(CLOUD_MODELS.map((m) => [m.name, m.provider, m.keyEnv]), [['mercury-2', 'inception', 'INCEPTION_API_KEY'], ['deepseek-flash', 'deepseek', 'DEEPSEEK_API_KEY'], ['grok-4.3', 'xai', 'XAI_API_KEY']]);
+  assert.ok(isCloudModel('deepseek-flash') && isCloudModel('mercury-2') && isCloudModel('grok-4.3'));
+  assert.equal(providerOf('grok-4.3'), 'xai'); assert.equal(cloudModel('grok-4.3')?.vendor, 'xAI');
   assert.ok(!isCloudModel('qwen2.5:1.5b') && !isCloudModel('deepseek-chat'), 'an alias outside the registry is not a registered model');
   assert.equal(cloudModel('deepseek-flash')?.vendor, 'DeepSeek');
   assert.equal(providerOf('deepseek-flash'), 'deepseek'); assert.equal(providerOf('mercury-2'), 'inception'); assert.equal(providerOf('qwen2.5:1.5b'), 'ollama');
@@ -42,11 +43,14 @@ test('configured models and the default follow which keys are set', () => {
   assert.equal(defaultAgentModel(), 'deepseek-flash'); assert.equal(inceptionConfigured(), false); assert.ok(cloudConfigured('deepseek-flash'));
   process.env.INCEPTION_API_KEY = 'i'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash']);
   assert.equal(defaultAgentModel(), 'mercury-2', 'Mercury stays the default when both are set');
+  process.env.XAI_API_KEY = 'x'; assert.deepEqual(configuredCloudModels().map((m) => m.name), ['mercury-2', 'deepseek-flash', 'grok-4.3']);
+  delete process.env.INCEPTION_API_KEY; delete process.env.DEEPSEEK_API_KEY; assert.equal(defaultAgentModel(), 'grok-4.3', 'xAI alone is enough');
 });
 
-test('deepseek-flash has a real price, so a budget can count it; an unknown model still costs nothing', () => {
+test('grok-4.3 and deepseek-flash have a price, so a budget can count it; an unknown model still costs nothing', () => {
   const usd = costUsd('deepseek-flash', 1_000_000, 1_000_000);
   assert.ok(usd > 0 && usd >= costUsd('mercury-2', 1_000_000, 1_000_000), 'the estimate is not below Mercury');
+  assert.ok(costUsd('grok-4.3', 1_000_000, 1_000_000) > 0);
   assert.equal(costUsd('some-unknown-model', 1000, 1000), 0);
 });
 
@@ -58,6 +62,18 @@ test('deepseek-flash is sent to the DeepSeek endpoint with the DeepSeek key, and
     assert.deepEqual(s.seen.map((x) => [x.url, x.auth, x.model]), [['/v1/chat/completions', 'Bearer ds-secret', 'deepseek-flash']]);
     assert.ok(r.cost_usd > 0);
   } finally { await s.close(); }
+});
+
+test('grok-4.3 is sent to the xAI endpoint with the xAI key', async () => {
+  const s = await stub(); process.env.XAI_BASE_URL = s.base; process.env.XAI_API_KEY = 'xai-secret'; process.env.INCEPTION_API_KEY = 'inc-secret';
+  try {
+    const r = await runToolAgent('say done', 'grok-4.3', 3, 0, [], hooks(), '');
+    assert.equal(r.success, true);
+    assert.deepEqual(s.seen.map((x) => [x.auth, x.model]), [['Bearer xai-secret', 'grok-4.3']]);
+    assert.ok(r.cost_usd > 0);
+  } finally { await s.close(); }
+  delete process.env.XAI_API_KEY;
+  assert.equal((await runToolAgent('x', 'grok-4.3', 2, 0, [], hooks(), '')).error, 'XAI_API_KEY is not set in .env');
 });
 
 test('mercury-2 still uses the Inception endpoint and key, and an unregistered name falls back to them', async () => {
@@ -78,7 +94,7 @@ test('a missing key names the right variable, and an HTTP error names the right 
 test('the dashboard model list shows each configured cloud model as a worker agent', async () => {
   const clients = createModelClients({ ollamaBaseUrl: 'http://127.0.0.1:9', janusBaseUrl: 'http://127.0.0.1:9', janusEnabled: () => false });
   assert.deepEqual((await clients.listModels().catch(() => [])).filter((m) => (m as { agent?: boolean }).agent), []);
-  process.env.DEEPSEEK_API_KEY = 'd'; process.env.INCEPTION_API_KEY = 'i';
-  const list = (await clients.listModels()) as Array<{ name: string; provider: string; agent?: boolean }>;
-  assert.deepEqual(list.filter((m) => m.agent).map((m) => [m.name, m.provider]), [['mercury-2', 'inception'], ['deepseek-flash', 'deepseek']]);
+  process.env.DEEPSEEK_API_KEY = 'd'; process.env.INCEPTION_API_KEY = 'i'; process.env.XAI_API_KEY = 'x';
+  const list = (await clients.listModels()) as Array<{ name: string; provider: string; vendor?: string; agent?: boolean }>;
+  assert.deepEqual(list.filter((m) => m.agent).map((m) => [m.name, m.provider, m.vendor]), [['mercury-2', 'inception', 'Inception'], ['deepseek-flash', 'deepseek', 'DeepSeek'], ['grok-4.3', 'xai', 'xAI']]);
 });
