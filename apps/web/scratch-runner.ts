@@ -29,6 +29,24 @@ export const MAX_PATCH_CHARS = 200_000;
 export const MAX_PATCH_FILES = 50;
 const FILE_SIZE_LIMIT_BYTES = 256 * 1024 * 1024;
 
+/** Where a repository's npm project lives and what it defines: `apps/web` (this repository's layout) or the root, its scripts, and whether it declares dependencies. */
+export interface ProjectInfo { cwdRel: string; scripts: string[]; hasDeps: boolean }
+export function projectOf(repoRoot: string): ProjectInfo | null {
+  for (const rel of ['apps/web', '.']) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(path.resolve(repoRoot), rel, 'package.json'), 'utf8')) as { scripts?: Record<string, unknown>; dependencies?: object; devDependencies?: object };
+      const deps = Object.keys(pkg.dependencies ?? {}).length + Object.keys(pkg.devDependencies ?? {}).length;
+      return { cwdRel: rel, scripts: Object.keys(pkg.scripts ?? {}), hasDeps: deps > 0 };
+    } catch { /* not here */ }
+  }
+  return null;
+}
+/** The named checks a repository can run: the ones whose npm script it defines. Empty when it has no npm project or none of the scripts. Used when a plan is made, so what is approved is what exists. */
+export function definedChecks(repoRoot: string): Array<keyof typeof CHECKS> {
+  const p = projectOf(repoRoot);
+  return p ? (Object.keys(CHECKS) as Array<keyof typeof CHECKS>).filter((k) => p.scripts.includes(CHECKS[k].script)) : [];
+}
+
 /** The argv for a named check, or the reason it is refused. A script name comes from the table, never from the caller. */
 export function checkCommand(name: string, file?: string): { ok: true; argv: string[]; timeoutMs: number } | { ok: false; error: string } {
   if (name === 'test_file') {
@@ -110,11 +128,13 @@ export function sandboxEnv(nodeRoot: string): Record<string, string> {
 }
 
 /** The bwrap argument list: every namespace unshared (so no network beyond a private loopback), a read-only system, the work copy writable, nothing else of the host. */
+/** The directory inside the sandbox a check runs in: /work for a repository whose npm project is at its root, /work/<dir> otherwise. */
+const workDir = (cwdRel: string): string => (cwdRel === '.' || cwdRel === '' ? '/work' : `/work/${cwdRel}`);
 export function bwrapArgs(p: SandboxPaths, argv: string[]): string[] {
   const args = ['--unshare-all', '--die-with-parent', '--new-session',
     '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', p.nodeRoot, p.nodeRoot,
-    '--bind', p.work, '/work', '--ro-bind', p.nodeModules, `/work/${p.cwdRel}/node_modules`,
-    '--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--chdir', `/work/${p.cwdRel}`, '--clearenv'];
+    '--bind', p.work, '/work', '--ro-bind', p.nodeModules, `${workDir(p.cwdRel)}/node_modules`,
+    '--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--chdir', workDir(p.cwdRel), '--clearenv'];
   for (const [k, v] of Object.entries(sandboxEnv(p.nodeRoot))) args.push('--setenv', k, v);
   return [...args, ...argv];
 }
@@ -271,8 +291,10 @@ async function runOne(req: ScratchRequest): Promise<ScratchReport> {
   const probe = await probeSandbox();
   if (!probe.ok) throw new Error(`no sandbox, so nothing was run: ${probe.reason}`);
   const repoRoot = path.resolve(req.repoRoot);
-  const nodeModules = path.join(repoRoot, 'apps', 'web', 'node_modules');
-  if (!fs.existsSync(nodeModules)) throw new Error('dependencies are not installed in apps/web (node_modules is missing)');
+  const project = projectOf(repoRoot);
+  if (!project) throw new Error('this repository has no package.json (at its root or in apps/web), so there are no npm checks to run');
+  let nodeModules = path.join(repoRoot, project.cwdRel, 'node_modules');
+  if (!fs.existsSync(nodeModules) && project.hasDeps) throw new Error(`dependencies are not installed in ${project.cwdRel === '.' ? 'the repository root' : project.cwdRel} (node_modules is missing), and the sandbox has no network to install them`);
   const sha = await resolveCommit(repoRoot, req.ref);
 
   const root = fs.mkdtempSync(path.join(req.scratchRoot ?? os.tmpdir(), 'kudbee-scratch-'));
@@ -294,8 +316,10 @@ async function runOne(req: ScratchRequest): Promise<ScratchReport> {
       const apply = await run('git', ['apply', '--whitespace=nowarn', '-'], { cwd: work, input: req.patch, env });
       if (apply.code !== 0) throw new Error(`the patch could not be applied: ${apply.out.trim().slice(0, 200)}`);
     }
-    const paths: SandboxPaths = { work, nodeRoot: nodeRootOf(), nodeModules, cwdRel: 'apps/web' };
-    fs.mkdirSync(path.join(work, 'apps', 'web', 'node_modules'), { recursive: true });
+    // a project that declares no dependencies needs no node_modules: the sandbox gets an empty read-only one
+    if (!fs.existsSync(nodeModules)) { nodeModules = path.join(root, 'no-node-modules'); fs.mkdirSync(nodeModules); }
+    const paths: SandboxPaths = { work, nodeRoot: nodeRootOf(), nodeModules, cwdRel: project.cwdRel };
+    fs.mkdirSync(path.join(work, project.cwdRel, 'node_modules'), { recursive: true });
     const results: CheckResult[] = [];
     for (const c of req.checks) { req.signal?.throwIfAborted(); results.push(await runCheckInSandbox(paths, c.check, c.file, { timeoutMs: req.timeoutMs, signal: req.signal })); }
     req.signal?.throwIfAborted();

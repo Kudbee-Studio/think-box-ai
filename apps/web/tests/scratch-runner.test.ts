@@ -276,10 +276,10 @@ const s = http.createServer((q, r) => r.end('ok')).listen(0, '127.0.0.1', async 
     assert.ok(r.checks[0]!.output_tail.length <= OUTPUT_TAIL_BYTES); assert.ok(r.checks[0]!.output_tail.endsWith('END'));
   });
 
-  it('refuses a ref that is not a commit, and missing dependencies, without running anything', { skip }, async () => {
+  it('refuses a ref that is not a commit, and a repository with no npm project, without running anything', { skip }, async () => {
     await assert.rejects(runScratch({ repoRoot: repo, ref: 'no-such-branch', checks: [{ check: 'lint' }] }), /is not a commit in this repository/);
     const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'scratch-nodeps-'));
-    try { await assert.rejects(runScratch({ repoRoot: bare, ref: 'main', checks: [{ check: 'lint' }] }), /node_modules is missing/); } finally { fs.rmSync(bare, { recursive: true, force: true }); }
+    try { await assert.rejects(runScratch({ repoRoot: bare, ref: 'main', checks: [{ check: 'lint' }] }), /no package\.json/); } finally { fs.rmSync(bare, { recursive: true, force: true }); }
   });
 
   it('runs are serialised: two at once both finish and neither sees the other\'s copy', { skip }, async () => {

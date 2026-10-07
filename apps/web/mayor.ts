@@ -114,6 +114,8 @@ export interface PlanInput {
   /** The worker-agent model for specialist work (and the escalation fallback). */
   agentModel: string | null;
   isLocalModel: (model: string) => boolean;
+  /** SIMULATE: the sandbox checks the repository really defines (npm scripts). Omitted means this project's own four; an empty list blocks the plan. */
+  repoChecks?: readonly string[];
   /** Names of the tools this runtime really has (agent.ts TOOLS). */
   availableTools: string[];
   /** The measured average cost of one run on this model, or null when there are no measured runs. */
@@ -147,6 +149,8 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
   let simulation: ConvoyPlan['simulation'];
   if (mode === 'simulate') {
     if ((recipe && isGithubRecipe(recipe)) || matchRepoGoal(goal)) blocked.push('SIMULATE proposes and verifies a change; this goal reads like a question or an investigation (use OBSERVE for that)');
+    const simChecks = input.repoChecks ?? SIMULATE_CHECKS;
+    if (!simChecks.length) blocked.push('this repository defines no check the sandbox can run (it needs an npm script named lint, typecheck, typecheck:tsc or test, in package.json at its root or in apps/web)');
     const missing = SIMULATE_TOOLS.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the tools SIMULATE needs are not available in this runtime: ${missing.join(', ')}`);
     // Mercury unless the operator picked a local model for this convoy; the measured table never decides this (nothing has been measured for patching).
@@ -161,7 +165,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
     });
     workers.push({
       id: 'checks-1', kind: 'checks', name: 'Verify in the sandbox', model: null, tools: ['run_checks'], permission: 'sandbox_exec', depends_on: ['patch-1'], wave: 2,
-      purpose: `Run the repository's own checks (${SIMULATE_CHECKS.join(', ')}) on a throwaway copy of the commit with the proposed change applied: no network, no credentials, nothing touches your working tree. Asks for your approval again, showing the exact commit and patch.`,
+      purpose: `Run the repository's own checks (${simChecks.join(', ')}) on a throwaway copy of the commit with the proposed change applied: no network, no credentials, nothing touches your working tree. Asks for your approval again, showing the exact commit and patch.`,
       estimated_cost_usd: 0, cost_basis: 'no model: the repository\'s own checks run in a sandbox', estimated_tool_calls: 1,
     });
     waves.push(['patch-1'], ['checks-1']);
@@ -172,7 +176,7 @@ export function planConvoy(input: PlanInput): { ok: true; plan: ConvoyPlan } | {
         : 'No revision round fits the worker or tool-call budget: a failing proposal is reported as it is.');
     }
     const rounds = Math.max(1, Math.min(MAX_SIMULATE_ROUNDS, Math.floor(budget.max_workers / 2), 1 + Math.floor((budget.max_tool_calls - CALLS_FIRST_ROUND) / CALLS_PER_REVISION)));
-    simulation = { ref: 'HEAD', checks: [...SIMULATE_CHECKS], patch_local: operatorLocal !== null, max_rounds: rounds };
+    simulation = { ref: 'HEAD', checks: [...simChecks], patch_local: operatorLocal !== null, max_rounds: rounds };
   } else if (!(recipe && isGithubRecipe(recipe)) && matchRepoGoal(goal)) {
     const missing = REPO_TOOL_NAMES.filter((t) => !input.availableTools.includes(t));
     if (missing.length) blocked.push(`the repository tools are not available in this runtime: ${missing.join(', ')}`);
