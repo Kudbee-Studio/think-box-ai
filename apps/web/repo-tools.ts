@@ -14,7 +14,17 @@ import { readConfined } from './workspace-fs.ts';
 export const REPO_TOOLS = ['repo_search', 'repo_read'] as const;
 
 const LIMITS = { maxMatches: 40, maxFiles: 4000, maxFileBytes: 400_000, maxQuery: 120, maxLineChars: 240, readWindow: 200, defaultWindow: 120, deadlineMs: 6000 } as const;
-const TEXT_EXT = new Set(['.ts', '.js', '.mjs', '.cjs', '.json', '.md', '.css', '.html', '.py', '.sh', '.yml', '.yaml', '.txt', '.toml']);
+// Text a worker may read: common source and documentation extensions, plus the extensionless files nearly every repository has (README, LICENSE, Makefile, ...).
+// A repository whose README is a plain `README` used to look empty to the agent. Secrets, keys and databases stay blocked by SECRET_FILE whatever the name.
+const TEXT_EXT = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.json', '.md', '.mdx', '.rst', '.css', '.scss', '.less', '.html', '.vue', '.svelte', '.py', '.sh', '.yml', '.yaml', '.txt', '.toml', '.ini', '.cfg', '.conf', '.properties',
+  '.go', '.rs', '.java', '.kt', '.scala', '.rb', '.php', '.c', '.h', '.cc', '.cpp', '.hpp', '.cs', '.swift', '.dart', '.lua', '.ex', '.exs', '.sql', '.xml', '.gradle', '.tf']);
+const TEXT_NAMES = new Set(['readme', 'license', 'licence', 'notice', 'copying', 'authors', 'changelog', 'changes', 'contributing', 'codeowners', 'maintainers', 'makefile', 'dockerfile', 'procfile', 'gemfile', 'rakefile', 'jenkinsfile', 'vagrantfile']);
+/** True for a file name (or a repo-relative path) a worker may read as text. */
+export function isTextFile(nameOrPath: string): boolean {
+  const base = nameOrPath.split('/').pop() ?? '';
+  const ext = path.extname(base).toLowerCase();
+  return ext ? TEXT_EXT.has(ext) : TEXT_NAMES.has(base.toLowerCase());
+}
 const EXCLUDED_DIRS = new Set(['.git', 'node_modules', 'data', 'workspaces', 'coverage', 'dist', '.cache', '.codeql', '__pycache__', '.venv', 'venv']);
 /** Files a worker must never see, whatever their extension. */
 const SECRET_FILE = /(^|\/)(\.env(\..*)?|\.local-token.*|local-token.*|id_(rsa|ed25519|ecdsa).*|.*\.(pem|key|p12|pfx|crt|db|sqlite|db-wal|db-shm|bak)|.*secret.*|.*credential.*|\.npmrc|\.netrc)$/i;
@@ -40,7 +50,7 @@ export function checkRepoPath(raw: unknown, { allowDir = false }: { allowDir?: b
   if (parts.some((p) => EXCLUDED_DIRS.has(p))) return { ok: false, error: `path is in an excluded folder (${parts.find((p) => EXCLUDED_DIRS.has(p))})` };
   const rel = parts.join('/');
   if (SECRET_FILE.test(rel)) return { ok: false, error: 'this file is not available to workers (secrets, keys, databases)' };
-  if (!allowDir && !TEXT_EXT.has(path.extname(rel).toLowerCase())) return { ok: false, error: `only text source files can be read (${[...TEXT_EXT].join(' ')})` };
+  if (!allowDir && !isTextFile(rel)) return { ok: false, error: `only text source files can be read (${[...TEXT_EXT].slice(0, 14).join(' ')} and others, plus README, LICENSE, Makefile, Dockerfile)` };
   return { ok: true, rel };
 }
 
@@ -93,7 +103,7 @@ async function navigationHint(realRoot: string, rel: string): Promise<string> {
     const dir = parts.slice(0, n).join('/');
     let entries: fs.Dirent[];
     try { entries = await fs.promises.readdir(path.join(realRoot, dir), { withFileTypes: true }); } catch { continue; }
-    const names = entries.filter((e) => !e.isSymbolicLink() && !e.name.startsWith('.') && !SECRET_FILE.test(e.name) && (e.isDirectory() ? !EXCLUDED_DIRS.has(e.name) : TEXT_EXT.has(path.extname(e.name).toLowerCase())))
+    const names = entries.filter((e) => !e.isSymbolicLink() && !e.name.startsWith('.') && !SECRET_FILE.test(e.name) && (e.isDirectory() ? !EXCLUDED_DIRS.has(e.name) : isTextFile(e.name)))
       .map((e) => (e.isDirectory() ? `${e.name}/` : e.name)).sort().slice(0, 12);
     return names.length ? ` In ${dir || 'the repository root'}: ${names.join(', ')}.` : '';
   }
@@ -120,7 +130,7 @@ export async function repoSearch(args: { query: string; path: string }, root: st
       if (e.isSymbolicLink()) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) { if (!EXCLUDED_DIRS.has(e.name)) await walk(childRel); continue; }
-      if (!e.isFile() || SECRET_FILE.test(childRel) || !TEXT_EXT.has(path.extname(e.name).toLowerCase())) continue;
+      if (!e.isFile() || SECRET_FILE.test(childRel) || !isTextFile(e.name)) continue;
       if (scanned >= LIMITS.maxFiles || Date.now() > deadline) { truncated = true; return; }
       scanned += 1;
       let text: string | null;
@@ -144,7 +154,7 @@ export async function repoSearch(args: { query: string; path: string }, root: st
     startIsFile = st.isFile();
   }
   if (startIsFile) {
-    if (!TEXT_EXT.has(path.extname(startRel).toLowerCase())) throw new RepoToolError('only text source files can be searched');
+    if (!isTextFile(startRel)) throw new RepoToolError('only text source files can be searched');
     scanned = 1;
     const text = await readTextFile(realRoot, startRel);
     if (text !== null) text.split('\n').forEach((l, i) => { if (l.toLowerCase().includes(needle) && matches.length < LIMITS.maxMatches) matches.push({ path: startRel, line: i + 1, text: clip(l.replace(/\r$/, '')) }); });

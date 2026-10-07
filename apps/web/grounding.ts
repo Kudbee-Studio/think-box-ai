@@ -355,7 +355,8 @@ export function validateFinding(finding: RepoFinding, evidence: RepoEvidence[], 
     if (e.tool === 'repo_read') for (const l of e.lines) note(e.path, l.n, l.text);
     else for (const m of e.matches) note(m.path, m.line, m.text);
   }
-  const everything = norm([...seen.values()].flatMap((m) => [...m.values()]).join('\n'));
+  // what the tools returned: every line of text AND every file path (a claim may name `README` or `src/a.ts` because a tool returned that path, not only because the text says it)
+  const everything = norm([...seen.keys(), ...[...seen.values()].flatMap((m) => [...m.values()])].join('\n'));
   if (!evidence.length) { add('citation', '(whole finding)', 'no repository tool was used, so nothing in the finding can be verified'); return { status: 'GROUNDING FAILED', classification: 'no_evidence', unsupported, checked }; }
 
   checked.quotes += 1;

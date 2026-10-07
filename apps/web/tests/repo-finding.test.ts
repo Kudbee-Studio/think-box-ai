@@ -59,6 +59,17 @@ describe('validateFinding against real tool evidence', () => {
     const ev = [await repoRead({ path: 'src/alpha.ts', start: 1, end: 6 })];
     assert.ok(claims(found({ claim: 'The function `invented` is never called.', absence_search: undefined }), ev).includes('identifier:invented'));
   });
+  it('a backticked name that is a file path a tool returned is supported (a plain README, a nested path), and an invented path still is not', async () => {
+    const w = (rel: string, t: string) => { fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true }); fs.writeFileSync(path.join(root, rel), t); };
+    w('README', 'Hello World!\n');
+    const viaSearch = [await repoSearch({ query: 'Hello World', path: '' })];
+    const readme = found({ file: 'README', line: 1, quote: 'Hello World!', claim: 'The file `README` contains the text `Hello World!` on line 1.' });
+    assert.equal(validateFinding(readme, viaSearch).status, 'GROUNDED');
+    const nested = [await repoRead({ path: 'src/alpha.ts', start: 1, end: 6 })];
+    assert.equal(validateFinding(found({ claim: 'The function `orphan` is defined in `src/alpha.ts`.' }), nested).status, 'GROUNDED');
+    assert.ok(claims(found({ claim: 'The function `orphan` is defined in `src/other.ts`.' }), nested).includes('identifier:src/other.ts'), 'a path no tool returned is still unsupported');
+    fs.rmSync(path.join(root, 'README'));
+  });
   it('a claim of absence is grounded only by a search that ran, found nothing and was not cut off', async () => {
     const read = await repoRead({ path: 'src/alpha.ts', start: 1, end: 6 });
     const claim = 'The function `orphan` has no tests.';
