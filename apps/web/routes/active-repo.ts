@@ -2,12 +2,14 @@
 import type { Express, Response } from 'express';
 import { ActiveRepoError, type ActiveRepoManager } from '../active-repo.ts';
 import { errorMessage } from '../types.ts';
+import { registerRepoChangesRoutes } from './repo-changes.ts';
 import type { Request } from './types.ts';
 
 export interface ActiveRepoRouteDeps { manager: ActiveRepoManager; profileId: () => string; isHuman: (req: Request) => boolean }
 
 export function registerActiveRepoRoutes(app: Express, deps: ActiveRepoRouteDeps): void {
   const { manager, profileId, isHuman } = deps;
+  registerRepoChangesRoutes(app, deps); // reviewing what the agent changed belongs with choosing the repository
   const view = () => { const a = manager.active(profileId()); return { active: a ? { name: a.name, repo: a.repo } : null, repositories: manager.list(profileId()) }; };
   const fail = (res: Response, err: unknown) => res.status(err instanceof ActiveRepoError ? 400 : 500).json({ error: errorMessage(err) });
 
