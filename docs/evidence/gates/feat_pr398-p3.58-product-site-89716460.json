@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-07T11:55:29.909Z",
+  "head": "89716460",
+  "base": "gh/main",
+  "base_sha": "adebc2f6",
+  "branch": "feat/pr398-p3.58-product-site",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1384
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1370
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1340
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1451 passed, 0 failed; lines 92.59% (floor 90%)",
+      "ms": 56620
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "33 alerts here, 33 on base, 0 new",
+      "ms": 273958
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 134790
+    }
+  ],
+  "verdict": "PASS"
+}

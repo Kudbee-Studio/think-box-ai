@@ -305,3 +305,6 @@ select option:checked, select option:hover { background-color: var(--bg-active, 
 .thought-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 10px; color: var(--text-muted); }
 .thought-type { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 .thought-content { color: var(--text-secondary); line-height: 1.55; overflow-wrap: anywhere; }
+
+/* The header "Website" link is an anchor styled as a secondary button. */
+a.btn-secondary { text-decoration: none; display: inline-flex; align-items: center; }
