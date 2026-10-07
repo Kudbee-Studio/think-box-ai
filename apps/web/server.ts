@@ -34,11 +34,11 @@ import { AGENT_PROFILES, TOOLS, configuredCloudModels, inceptionConfigured, isCl
 import { defaultAgentModel, runToolAgentWithFailover } from './cloud-routing.ts';
 import { createWorkspaceResolver } from './workspace-resolver.ts';
 import { ActiveRepoManager, repoFilePath } from './active-repo.ts';
-import { registerRepoChangesRoutes } from './routes/repo-changes.ts';
 import { registerActiveRepoRoutes } from './routes/active-repo.ts';
 import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
+import { openAgentDraftPr } from './agent-pr.ts';
 import { repoRoot } from './repo-tools.ts';
 import { definedChecks } from './scratch-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
@@ -1907,6 +1907,10 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
           break;
         }
 
+        case 'repo_open_draft_pr': {
+          const r = await openAgentDraftPr({ root: activeRepos.active(profileManager.getActiveId())?.root, approve: (tool, args, reason) => session.requestApproval('agent-pr', tool, args, reason) }).catch((err) => ({ ok: false, error: scrubSecrets(errorMessage(err)) }));
+          ws.send(JSON.stringify({ type: 'repo_pr_result', data: r })); break;
+        }
         // Slice 4: a human turns a verified, accepted SIMULATE proposal into a DRAFT pull request on the configured repository. Off unless KUDBEE_DRAFT_PR=on.
         // Nothing but this socket reaches it (no model, no tool, no HTTP route), and it asks the human again with the repository, branch, patch hash and files.
         case 'convoy_open_draft_pr': {
@@ -2230,7 +2234,6 @@ registerConvoyRoutes(app, {
   isHuman: isHumanReq,
 });
 registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
-registerRepoChangesRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {

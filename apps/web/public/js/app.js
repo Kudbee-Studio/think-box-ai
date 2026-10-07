@@ -188,6 +188,10 @@ function handleMessage(msg) {
       refreshFiles();
       break;
 
+    case 'repo_pr_result':
+      appendTerminalMessage(msg.data.ok ? 'system' : 'error', msg.data.ok ? `Draft pull request opened (${msg.data.files} file${msg.data.files === 1 ? '' : 's'}): ${msg.data.url}` : `No pull request: ${msg.data.error}`);
+      break;
+
     case 'run_update':
       window.dispatchEvent(new CustomEvent('think-cube:run', { detail: { id: msg.data.id, status: msg.data.status } }));
       state.runProgress[msg.data.id] = msg.data;
@@ -1395,7 +1399,7 @@ async function loadRepoChanges() {
   try { const r = await fetch('/api/repo/changes', { cache: 'no-store' }); if (r.ok) data = await r.json(); } catch { /* optional panel */ }
   if (!data.repo || !data.files.length) { box.hidden = true; box.innerHTML = ''; return; }
   box.hidden = false;
-  box.innerHTML = `<div class="repo-changes-head"><strong>Changes in ${escapeHtml(data.repo)} (${data.files.length}${data.truncated ? '+' : ''})</strong><button type="button" data-change-undo-all>Undo all</button></div>`
+  box.innerHTML = `<div class="repo-changes-head"><strong>Changes in ${escapeHtml(data.repo)} (${data.files.length}${data.truncated ? '+' : ''})</strong><span><button type="button" data-change-pr title="Push these changes as a new branch and open a DRAFT pull request (you are asked first)">Open draft PR</button> <button type="button" data-change-undo-all>Undo all</button></span></div>`
     + data.files.map(file => `<div class="repo-change" data-change-path="${escapeHtml(file.path)}"><span class="change-kind kind-${escapeHtml(file.status)}">${escapeHtml(CHANGE_LABEL[file.status] || file.status)}</span><span class="change-path" title="${escapeHtml(file.path)}">${escapeHtml(file.path)}</span><button type="button" data-change-diff>diff</button><button type="button" data-change-undo>undo</button></div>`).join('');
 }
 
@@ -2064,7 +2068,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('repo-changes').addEventListener('click', event => {
     const row = event.target.closest('.repo-change');
-    if (event.target.closest('[data-change-undo-all]')) undoChange('');
+    if (event.target.closest('[data-change-pr]')) {
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) { state.ws.send(JSON.stringify({ type: 'repo_open_draft_pr' })); appendTerminalMessage('system', 'Preparing a draft pull request: you will be asked to approve before anything is pushed.'); }
+    } else if (event.target.closest('[data-change-undo-all]')) undoChange('');
     else if (row && event.target.closest('[data-change-diff]')) toggleChangeDiff(row);
     else if (row && event.target.closest('[data-change-undo]')) undoChange(row.dataset.changePath);
   });
