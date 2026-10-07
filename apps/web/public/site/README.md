@@ -36,11 +36,12 @@ You can also double-click `index.html`. Everything except WebGL works that way, 
 - **No WebGL:** you get a CSS cube in the hero and a still render in the block inspector.
 - **Performance:** devicePixelRatio is capped at 2 (1.75 on mobile), and rendering pauses offscreen. Three.js loads only after the page has loaded.
 - **Illustrative content:** the terminal, the configurator JSON and the attack demo are scripted and labeled.
-- **Proof strip:** the numbers are static values read from GitHub on Sep 30 to Oct 1, 2026. Refresh them by hand.
+- **Proof strip and changelog:** the numbers and the merged-PR list are static values read from GitHub and git on Oct 7, 2026 (commit 74913e9). Refresh them by hand.
+- **Measured models table:** copied from `apps/web/cloud-routing.ts`; `tests/site-served.test.ts` fails if they differ.
 
 ## Founder TODOs
 
 Search `index.html` for `TODO founder` and `[Founder to write`:
-1. Origin story under "The problem".
-2. Founder note in "Build in public".
+1. Origin story under "The problem": a prompt in a `DRAFT` box; the personal moment has to be yours.
+2. Founder note in "Build in public": the three project rules are drafted from the repository's own practice; the "who you are and where it goes" paragraph is left for you.
 3. Dashboard walkthrough: drop `assets/video/dashboard.mp4`, then set `data-has-video="true"` on `#walk-video`.
