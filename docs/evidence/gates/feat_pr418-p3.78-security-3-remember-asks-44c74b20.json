@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-08T12:26:55.612Z",
+  "head": "44c74b20",
+  "base": "gh/main",
+  "base_sha": "ed382f54",
+  "branch": "feat/pr418-p3.78-security-3-remember-asks",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1341
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1357
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1329
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 21)",
+      "ms": 7932
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 712
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1593 passed, 0 failed; lines 92.86% (floor 90%)",
+      "ms": 75989
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 573322
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 276791
+    }
+  ],
+  "verdict": "PASS"
+}
