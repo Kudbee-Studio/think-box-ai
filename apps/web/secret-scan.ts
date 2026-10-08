@@ -44,12 +44,13 @@ export function scanTracked(root: string): Finding[] {
   for (const rel of git(root, ['ls-files', '-z']).split('\0').filter(Boolean)) {
     if (SKIP_EXT.test(rel)) continue;
     let text: string;
+    let fd = -1;
     try {
-      const abs = path.join(root, rel);
-      const st = fs.statSync(abs);
+      fd = fs.openSync(path.join(root, rel), 'r'); // one handle for the size check and the read, so the file cannot change in between
+      const st = fs.fstatSync(fd);
       if (!st.isFile() || st.size > MAX_FILE) continue;
-      text = fs.readFileSync(abs, 'utf8');
-    } catch { continue; }
+      text = fs.readFileSync(fd, 'utf8');
+    } catch { continue; } finally { if (fd >= 0) fs.closeSync(fd); }
     if (text.includes('\0')) continue;
     out.push(...scanText(text, rel));
   }
