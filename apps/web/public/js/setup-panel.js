@@ -6,7 +6,7 @@
     if (!s || !s.headline) return '';
     return ['— ' + s.headline].concat((s.lines || []).map(function (l) { return '  ' + l; }), (s.next || []).map(function (n) { return '  → ' + n; })).join('\n');
   }
-  function renderSteps(setup, doc) {
+  function renderSteps(setup, doc, onTest) {
     var box = doc.createElement('div');
     var lead = doc.createElement('p'); lead.className = 'setup-lead';
     lead.textContent = setup.ready ? 'A model is connected. You are ready to run goals.' : 'One thing to do before the first run: connect a model.';
@@ -16,7 +16,9 @@
       var mark = doc.createElement('span'); mark.className = 'setup-mark'; mark.textContent = s.done ? 'Done' : (s.required ? 'To do' : 'Optional');
       var t = doc.createElement('strong'); t.textContent = s.title;
       var h = doc.createElement('span'); h.className = 'setup-hint'; h.textContent = s.hint;
-      row.appendChild(mark); row.appendChild(t); row.appendChild(h); box.appendChild(row);
+      row.appendChild(mark); row.appendChild(t); row.appendChild(h);
+      if (s.id === 'notifications' && s.done && onTest) { var b = doc.createElement('button'); b.className = 'btn-secondary'; b.textContent = 'Send a test message'; b.addEventListener('click', function () { onTest(h); }); row.appendChild(b); }
+      box.appendChild(row);
     });
     return box;
   }
@@ -28,7 +30,7 @@
       out.textContent = 'Checking…';
       return fetchFn('/api/setup').then(function (r) { return r.json(); }).then(function (setup) {
         if (auto && setup.ready) return;
-        out.textContent = ''; out.appendChild(renderSteps(setup, doc)); panel.hidden = false;
+        out.textContent = ''; out.appendChild(renderSteps(setup, doc, function (hintEl) { hintEl.textContent = 'Sending\u2026'; fetchFn('/api/notify/test', { method: 'POST' }).then(function (r) { return r.json(); }).then(function (r) { hintEl.textContent = r.ok ? 'Test message sent. Check your channel.' : (r.error || 'The test message was not sent.'); }).catch(function () { hintEl.textContent = 'The test message was not sent.'; }); })); panel.hidden = false;
       }).catch(function () { out.textContent = 'Could not read the setup status.'; });
     }
     btn.addEventListener('click', function () { load(false); });
@@ -39,5 +41,5 @@
     if (!dismissed) load(true);
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = { init: init, renderSteps: renderSteps, summaryText: summaryText };
-  if (typeof document !== 'undefined') { window.runSummaryText = summaryText; init(document, function (u) { return fetch(u); }, window); }
+  if (typeof document !== 'undefined') { window.runSummaryText = summaryText; init(document, function (u, o) { return fetch(u, o); }, window); }
 })();

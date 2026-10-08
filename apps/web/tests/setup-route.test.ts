@@ -23,3 +23,12 @@ test('a reachable Ollama counts as a model', async () => {
   const fake = http.createServer((_q, r) => r.end('{"models":[]}')); const port = await listen(fake);
   try { assert.equal((await get({ runCount: () => 0, ollamaBaseUrl: `http://127.0.0.1:${port}`, env: {} })).ready, true); } finally { fake.close(); }
 });
+
+test('POST /api/notify/test reports the result of the test message', async () => {
+  const app = express(); registerSetupRoute(app, { runCount: () => 0, ollamaBaseUrl: 'http://127.0.0.1:9', env: {}, sendTest: async () => ({ ok: false, error: 'No webhook is set (KUDBEE_NOTIFY_WEBHOOK)' }) });
+  const bad = http.createServer(app); const p1 = await listen(bad);
+  try { const r = await fetch(`http://127.0.0.1:${p1}/api/notify/test`, { method: 'POST' }); assert.equal(r.status, 400); assert.match((await r.json() as { error: string }).error, /No webhook/); } finally { bad.close(); }
+  const app2 = express(); registerSetupRoute(app2, { runCount: () => 0, ollamaBaseUrl: 'http://127.0.0.1:9', env: {}, sendTest: async () => ({ ok: true }) });
+  const good = http.createServer(app2); const p2 = await listen(good);
+  try { const r = await fetch(`http://127.0.0.1:${p2}/api/notify/test`, { method: 'POST' }); assert.equal(r.status, 200); } finally { good.close(); }
+});

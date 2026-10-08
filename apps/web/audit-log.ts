@@ -35,6 +35,8 @@ const hashOf = (prev: string, row: { ts: number; kind: string; actor: string; ru
 export class AuditLog {
   private readonly db: Database.Database;
   private last: string;
+  /** Called after an event is stored (notifications). Whatever it does or throws, the audit entry stays recorded. */
+  onRecord?: (event: AuditEvent) => void;
 
   constructor(file: string = ':memory:') {
     this.db = new Database(file);
@@ -53,6 +55,7 @@ export class AuditLog {
       const info = this.db.prepare('INSERT INTO audit_events (ts, kind, actor, run_id, summary, detail, prev_hash, hash) VALUES (?,?,?,?,?,?,?,?)').run(row.ts, row.kind, row.actor, row.run_id, row.summary, row.detail, this.last, hash);
       const event = { seq: Number(info.lastInsertRowid), ts: row.ts, kind, actor: row.actor, run_id: runId, summary: row.summary, detail: detailOf(row.detail), prev_hash: this.last, hash };
       this.last = hash;
+      try { this.onRecord?.(event); } catch { /* a listener must never break the audit trail */ }
       return event;
     } catch (err) {
       console.error(`audit log write failed: ${err instanceof Error ? err.message : err}`);
