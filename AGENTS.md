@@ -3845,3 +3845,6 @@ A read-only dashboard panel (`public/js/audit-panel.js`) over `/api/spend`, `/ap
 
 ### P3.80: first-run setup, install script, run summary (PR #420)
 `GET /api/setup` and Tools > Get started (`setup-status.ts`, `public/js/setup-panel.js`): a checklist that opens by itself on a fresh install (no model connected). `kudbee init` (`init-env.ts`) creates an owner-only `.env` from the example; `install.sh` (`--check` is read-only) installs from a clone. `GET /api/runs/:id/summary` (`run-summary.ts`) feeds a plain card after each run. Not claimed: npx/npm publishing, macOS/Windows, browser check, running the install path itself. Evidence: `docs/evidence/p3.80-first-run/RESULTS.md`.
+
+### P3.81: Tools > Project, the project home (PR #421)
+`GET /api/project` (`project-home.ts`, route in `routes/active-repo.ts`) and Tools > Project (`public/js/project-panel.js`): the chosen repository's uncommitted changes, runs on it, cost, repo-scoped Think Tokens, recent repository decisions and next steps. `RunRecord.repo` is set when a run starts. Earlier runs are not attributed; live tagging and the browser view are unproven. Evidence: `docs/evidence/p3.81-project-home/RESULTS.md`.
