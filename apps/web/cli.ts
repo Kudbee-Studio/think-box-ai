@@ -20,6 +20,8 @@ import { loadMeasurements, pickMeasured } from './measured-routing.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readHealth, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { formatTokenHealth } from './think-token-health.ts';
 import { AuditLog } from './audit-log.ts';
+import { budgetConfig, formatUsd } from './budget-guard.ts';
+import { formatSpendReport, spendReport, type SpendRun } from './spend-report.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
@@ -486,6 +488,7 @@ ${c.bold('MODELS & AGENTS')}
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
   ${c.dim("kudbee run '<goal>'")}  one-shot goal (same as kudbee '<goal>'); ${c.dim("kudbee --agent hermes '<goal>'")} uses an agent lane
   ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
+  ${c.dim('kudbee spend [--json]')}  what was spent per day, model and profile, and the spend limits
   ${c.dim('kudbee audit [--verify] [--kind K] [--run ID] [--limit N] [--json]')}  who approved what, and what runs cost; --verify checks the log was not altered
   ${c.dim('kudbee tokens health [--json]')}  how many tokens are used, waiting or stale
   ${c.dim('kudbee token cube <TT-id> [--events] [--json]')}  the token's 100-cell grid (ASCII) and its recent cell changes
@@ -1122,6 +1125,25 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
 }
 
 
+/** `kudbee spend [--json]`: what was spent, from every profile's saved runs (per day, per model, per profile), read-only. Limits: KUDBEE_DAILY_BUDGET_USD and KUDBEE_RUN_BUDGET_USD. */
+function spendCommand(args: string[]): number {
+  const json = args.includes('--json');
+  const dir = path.join(DATA_DIR, 'profiles');
+  const runs: SpendRun[] = []; const names: Record<string, string> = {};
+  let ids: string[] = [];
+  try { ids = fs.readdirSync(dir); } catch { /* none yet */ }
+  for (const id of ids) {
+    try { const list = JSON.parse(fs.readFileSync(path.join(dir, id, 'runs.json'), 'utf8')) as SpendRun[]; for (const r of Array.isArray(list) ? list : []) runs.push({ ...r, profile_id: r.profile_id ?? id }); } catch { /* no runs for this profile */ }
+  }
+  if (!runs.length) { console.log(c.dim(`No saved runs under ${dir} yet.`)); return 1; }
+  const report = spendReport(runs, { names });
+  const cfg = budgetConfig();
+  if (json) { console.log(JSON.stringify({ ...report, budget: cfg }, null, 2)); return 0; }
+  console.log(formatSpendReport(report));
+  console.log(c.dim(`limits: daily ${cfg.daily ? formatUsd(cfg.daily) : 'off'} (KUDBEE_DAILY_BUDGET_USD) · per run ${cfg.run ? formatUsd(cfg.run) : 'off'} (KUDBEE_RUN_BUDGET_USD)`));
+  return 0;
+}
+
 /** `kudbee audit [--verify] [--kind K] [--run ID] [--limit N] [--json]`: reads the same audit.db the server writes (read-only on the chain; nothing is added or removed). */
 function auditCommand(args: string[]): number {
   const flag = (name: string): string | undefined => { const i = args.indexOf(name); if (i < 0) return undefined; const [, value] = args.splice(i, 2); return value; };
@@ -1237,6 +1259,7 @@ async function main(): Promise<void> {
   // Reading tokens needs no server and no WebSocket.
   if (process.argv[2] === 'tokens' || process.argv[2] === 'token') process.exit(tokensCommand(process.argv.slice(3)));
   if (process.argv[2] === 'audit') process.exit(auditCommand(process.argv.slice(3)));
+  if (process.argv[2] === 'spend') process.exit(spendCommand(process.argv.slice(3)));
 
   await ensureServer();
   const client = new Client();

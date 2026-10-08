@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { redact } from './think-token-store.ts';
 
-export type AuditKind = 'approval_requested' | 'approval_resolved' | 'run_finished' | 'agent_repo_changed' | 'changes_undone' | 'draft_pr';
+export type AuditKind = 'approval_requested' | 'approval_resolved' | 'run_finished' | 'agent_repo_changed' | 'changes_undone' | 'draft_pr' | 'budget_warning' | 'budget_stop';
 export interface AuditEvent { seq: number; ts: number; kind: AuditKind; actor: string; run_id: string | null; summary: string; detail: Record<string, unknown>; prev_hash: string; hash: string }
 /** `head` is the hash of the newest row: note it down elsewhere and a later cut of the end of the log shows up as a head you cannot reach (the chain alone cannot prove nothing was cut off the end). */
 export interface AuditVerdict { ok: boolean; entries: number; head?: string; broken_at?: number; reason?: string }
