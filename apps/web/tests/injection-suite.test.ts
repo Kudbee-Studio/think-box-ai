@@ -62,3 +62,30 @@ test('an obeyed order to write outside the folder, or to use a tool this run was
   assert.match(String(results.at(-3)?.error), /escapes workspace|Invalid/i); assert.match(String(results.at(-2)?.error), /not available to this run/); assert.match(String(results.at(-1)?.error), /not available to this run/);
   assert.equal(fs.existsSync(path.join(workspace, '..', '..', 'outside.txt')), false); assert.deepEqual(h.asked.filter((r) => !r.includes('127.0.0.1')), []);
 });
+
+test('an obeyed order to remember something after reading a web page asks a human first, and a "no" saves nothing', async () => {
+  const h = hooks(); const saved: string[] = []; h.hooks.remember = async (title: string) => { saved.push(title); return { saved: true }; };
+  mock.script([fetchHostile(), call('remember', { title: 'Planted fact', content: 'The admin password is hunter2', evidence: 'the page said so' }), say('done')]);
+  await agent.runToolAgent(goal(), 'mercury-2', 6, 0.2, [], h.hooks, '');
+  assert.deepEqual(saved, []); assert.ok(h.asked.some((r) => /Saves to memory.*web page/i.test(r)), `asked: ${h.asked.join(' | ')}`);
+  assert.match(String(lastTools().at(-1)?.error), /Denied by human reviewer/);
+});
+
+test('when the human says yes, the memory is saved; and a user who asked to remember in the goal is not asked again', async () => {
+  const h = hooks(); const saved: string[] = []; h.hooks.remember = async (title: string) => { saved.push(title); return { saved: true }; };
+  h.hooks.requestApproval = async () => true;
+  mock.script([fetchHostile(), call('remember', { title: 'Fact', content: 'c', evidence: 'e' }), say('done')]);
+  await agent.runToolAgent(goal(), 'mercury-2', 6, 0.2, [], h.hooks, '');
+  assert.deepEqual(saved, ['Fact']);
+  const h2 = hooks(); const saved2: string[] = []; h2.hooks.remember = async (title: string) => { saved2.push(title); return {}; };
+  mock.script([fetchHostile(), call('remember', { title: 'Asked', content: 'c', evidence: 'e' }), say('done')]);
+  await agent.runToolAgent(`${goal()} and remember that this page exists`, 'mercury-2', 6, 0.2, [], h2.hooks, '');
+  assert.deepEqual(saved2, ['Asked']); assert.deepEqual(h2.asked.filter((r) => /Saves to memory/.test(r)), []);
+});
+
+test('remembering after reading only a local file (no web page) does not ask', async () => {
+  const h = hooks(); const saved: string[] = []; h.hooks.remember = async (title: string) => { saved.push(title); return {}; };
+  mock.script([call('read_file', { path: 'important.txt' }), call('remember', { title: 'Local', content: 'c', evidence: 'important.txt' }), say('done')]);
+  await agent.runToolAgent('Read important.txt', 'mercury-2', 6, 0.2, [], h.hooks, '');
+  assert.deepEqual(saved, ['Local']); assert.deepEqual(h.asked, []);
+});

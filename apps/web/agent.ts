@@ -459,7 +459,9 @@ function githubApiBase(): string {
   return process.env.KUDBEE_GITHUB_API || 'https://api.github.com';
 }
 
-function approvalReason(name: string, args: Record<string, unknown>, hooks: AgentHooks): string | null {
+function approvalReason(name: string, args: Record<string, unknown>, hooks: AgentHooks, context?: RunContext): string | null {
+  // A page the agent read can plant a "fact". Unless the user's own goal asked to remember, a human decides whether web-sourced text becomes memory.
+  if (name === 'remember' && context?.webObserved && !context.userAskedToRemember) return `Saves to memory "${String(args.title ?? '').slice(0, 80)}" after reading a web page this run`;
   if (name === 'write_file') {
     try {
       if (fs.existsSync(hooks.resolvePath(String(args.path ?? '')))) return `Overwrites existing file ${args.path}`;
@@ -490,6 +492,8 @@ export interface RunContext {
   /** True once the run has read external data or a file that existed before the run. */
   observed: boolean;
   userAskedToRemember: boolean;
+  /** True once the run has read a web page, feed or live lookup: that text came from outside and may be hostile. */
+  webObserved?: boolean;
   /** Files this run wrote; reading them back is not evidence of anything. */
   written: Set<string>;
   rememberRefusals: number;
@@ -667,7 +671,7 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
       const prepared = await prepareRunChecks(args, repoRoot());
       if (!prepared.ok) throw new Error(`${RUN_CHECKS_TOOL}: ${prepared.error}`);
       args = prepared.args; approvalArgs = prepared.display; reason = prepared.reason;
-    } else reason = approvalReason(name, args, hooks);
+    } else reason = approvalReason(name, args, hooks, context);
     if (reason) {
       hooks.onThought({ type: 'approval', content: `Waiting for approval: ${reason}`, status: 'thinking' });
       approval = (await hooks.requestApproval(name, approvalArgs, reason)) ? 'approved' : 'denied';
@@ -677,6 +681,7 @@ export async function runGovernedTool(name: string, rawArgs: string | Record<str
     }
     output = { ok: true, ...(await executeTool(name, args, hooks, context)) };
     if (isObservation(name, args, context)) context.observed = true;
+    if (name === 'fetch_url' || name === 'read_rss' || name === 'live_lookup') context.webObserved = true;
     if (name === 'write_file') { context.written.add(normalizePath(args.path)); context.workspaceEmpty = false; }
     hooks.onThought({ type: 'tool_result', plugin: name, content: `${name} ✓ ${truncate(JSON.stringify(output), 200)}`, status: 'success' });
   } catch (err) {
