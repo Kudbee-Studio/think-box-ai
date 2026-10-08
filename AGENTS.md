@@ -3848,3 +3848,6 @@ A read-only dashboard panel (`public/js/audit-panel.js`) over `/api/spend`, `/ap
 
 ### P3.81: Tools > Project, the project home (PR #421)
 `GET /api/project` (`project-home.ts`, route in `routes/active-repo.ts`) and Tools > Project (`public/js/project-panel.js`): the chosen repository's uncommitted changes, runs on it, cost, repo-scoped Think Tokens, recent repository decisions and next steps. `RunRecord.repo` is set when a run starts. Earlier runs are not attributed; live tagging and the browser view are unproven. Evidence: `docs/evidence/p3.81-project-home/RESULTS.md`.
+
+### P3.82: Tools > Job templates (PR #422)
+Six ready goals (`job-templates.ts`, `routes/job-templates.ts`, `public/js/job-templates-panel.js`): explain the codebase, collect TODOs, review for bugs, fix a bug, document a file, write tests. They only fill the goal box. Each is limited to what a normal run can do (list/read/write files in the chosen repository) and says it cannot run code. No test-running or git-history templates, because a normal run has neither. Not run against a real model yet. Evidence: `docs/evidence/p3.82-job-templates/RESULTS.md`.

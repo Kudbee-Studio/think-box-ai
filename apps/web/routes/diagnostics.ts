@@ -6,6 +6,7 @@ import { SDK_VERSION, loadConfigFromEnv } from '../sdk/index.ts';
 import { errorMessage } from '../types.ts';
 import type { MemoryStore } from '../memory.ts';
 import type { RunStore } from '../runs.ts';
+import { registerJobTemplateRoutes } from './job-templates.ts';
 import { registerSetupRoute } from './setup.ts';
 import type { Request } from './types.ts';
 
@@ -63,6 +64,7 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
     }
   }
 
+  registerJobTemplateRoutes(app); // first-run helpers live beside the setup checklist (server.ts is at its line limit)
   registerSetupRoute(app, { runCount: () => deps.runStore.list(100000).length, ollamaBaseUrl: deps.ollamaBaseUrl, env: process.env });
 
   app.get('/api/health', (_req: Request, res: Response) => {

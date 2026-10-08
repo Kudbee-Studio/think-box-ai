@@ -81,6 +81,7 @@
           <button id="execution-logs-button" class="btn-icon" title="Execution logs" aria-label="Execution logs"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg><span class="tool-label">Execution logs</span></button>
           <button id="integrations-button" class="btn-icon" title="Integrations" aria-label="Integrations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v5M15 3v5"/><path d="M6 8h12v3a6 6 0 0 1-12 0V8Z"/><path d="M12 17v4"/></svg><span class="tool-label">Integrations</span></button>
           <button id="collaboration-button" class="btn-icon" title="Collaboration" aria-label="Collaboration"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></svg><span class="tool-label">Collaboration</span></button>
+          <button id="jobs-button" class="btn-icon" title="Job templates: ready goals such as explain this codebase, review for bugs, fix a bug" aria-label="Job templates"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg><span class="tool-label">Job templates</span></button>
           <button id="project-button" class="btn-icon" title="Project: the repository the agent is working on, its changes, runs, spend and decisions" aria-label="Project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/></svg><span class="tool-label">Project</span></button>
           <button id="setup-button" class="btn-icon" title="Get started: connect a model and run your first goal" aria-label="Get started"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><span class="tool-label">Get started</span></button>
           <button id="audit-button" class="btn-icon" title="Audit & spend: what was approved and decided, and what the runs cost" aria-label="Audit and spend"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6"/><circle cx="12" cy="17" r="1.5"/></svg><span class="tool-label">Audit &amp; spend</span></button>
@@ -352,6 +353,15 @@
           <div id="analytics-container" class="analytics-container">
             <div class="loading">Loading analytics...</div>
           </div>
+        </div>
+
+        <!-- Job templates Panel -->
+        <div class="panel" id="jobs-panel" hidden>
+          <div class="panel-header">
+            <h3><span class="icon">🧰</span> Job templates</h3>
+            <button id="close-jobs" class="btn-quiet" title="Close">✕</button>
+          </div>
+          <div id="jobs-container" class="jobs-container" aria-live="polite"></div>
         </div>
 
         <!-- Project Panel -->
@@ -633,6 +643,7 @@
   <script src="/js/audit-panel.js"></script>
   <script src="/js/setup-panel.js"></script>
   <script src="/js/project-panel.js"></script>
+  <script src="/js/job-templates-panel.js"></script>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>
