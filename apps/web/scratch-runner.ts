@@ -28,6 +28,11 @@ export const OUTPUT_TAIL_BYTES = 60_000;
 export const MAX_PATCH_CHARS = 200_000;
 export const MAX_PATCH_FILES = 50;
 const FILE_SIZE_LIMIT_BYTES = 256 * 1024 * 1024;
+/** The most data memory a check may map (RLIMIT_DATA, which also counts V8's heap): 4 GiB unless KUDBEE_SANDBOX_MEMORY_MB says otherwise. Node reserves about 0.5 GiB of it before it runs a line, so a limit under 1 GiB stops node itself. */
+export function sandboxMemoryBytes(env: Record<string, string | undefined> = process.env): number {
+  const mb = Number(env.KUDBEE_SANDBOX_MEMORY_MB);
+  return (Number.isFinite(mb) && mb >= 1024 ? mb : 4096) * 1024 * 1024;
+}
 
 /** Where a repository's npm project lives and what it defines: `apps/web` (this repository's layout) or the root, its scripts, and whether it declares dependencies. */
 export interface ProjectInfo { cwdRel: string; scripts: string[]; hasDeps: boolean }
@@ -209,14 +214,14 @@ export function parseTestSummary(output: string): { pass: number; fail: number; 
   return { pass: Number(pass[1]), fail: Number(fail[1]), ...(cancelled > 0 ? { cancelled } : {}) };
 }
 
-export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string | undefined, opts: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<CheckResult> {
+export function runCheckInSandbox(p: SandboxPaths, name: CheckName, file: string | undefined, opts: { timeoutMs?: number; signal?: AbortSignal; memoryLimitBytes?: number } = {}): Promise<CheckResult> {
   const cmd = checkCommand(name, file);
   if (!cmd.ok) return Promise.reject(new Error(cmd.error));
   const timeoutMs = opts.timeoutMs ?? cmd.timeoutMs;
   const started = Date.now();
   return new Promise((resolve) => {
-    // prlimit caps the size of any one file a check writes (a runaway writer); the sandbox has its own pid namespace, so killing it kills everything inside
-    const child = spawn('prlimit', [`--fsize=${FILE_SIZE_LIMIT_BYTES}`, '--', 'bwrap', ...bwrapArgs(p, cmd.argv)], { env: { PATH: '/usr/bin:/bin' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    // prlimit caps the size of any one file a check writes (a runaway writer) and the memory it can map (a runaway allocator); the sandbox has its own pid namespace, so killing it kills everything inside
+    const child = spawn('prlimit', [`--fsize=${FILE_SIZE_LIMIT_BYTES}`, `--data=${opts.memoryLimitBytes ?? sandboxMemoryBytes()}`, '--', 'bwrap', ...bwrapArgs(p, cmd.argv)], { env: { PATH: '/usr/bin:/bin' }, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     let buf = ''; let truncated = false; let timedOut = false;
     const take = (d: Buffer): void => { buf += d.toString('utf8'); if (buf.length > OUTPUT_TAIL_BYTES * 2) { buf = buf.slice(-OUTPUT_TAIL_BYTES); truncated = true; } };
     child.stdout.on('data', take); child.stderr.on('data', take);
@@ -249,6 +254,8 @@ export interface ScratchRequest {
   scratchRoot?: string;
   /** Overrides the per-check timeout (tests). */
   timeoutMs?: number;
+  /** Overrides the memory cap of each check (tests); the default is `sandboxMemoryBytes()`. */
+  memoryLimitBytes?: number;
   /** An operator stop: the run is abandoned, the sandbox killed and the copy removed. */
   signal?: AbortSignal;
 }
@@ -321,7 +328,7 @@ async function runOne(req: ScratchRequest): Promise<ScratchReport> {
     const paths: SandboxPaths = { work, nodeRoot: nodeRootOf(), nodeModules, cwdRel: project.cwdRel };
     fs.mkdirSync(path.join(work, project.cwdRel, 'node_modules'), { recursive: true });
     const results: CheckResult[] = [];
-    for (const c of req.checks) { req.signal?.throwIfAborted(); results.push(await runCheckInSandbox(paths, c.check, c.file, { timeoutMs: req.timeoutMs, signal: req.signal })); }
+    for (const c of req.checks) { req.signal?.throwIfAborted(); results.push(await runCheckInSandbox(paths, c.check, c.file, { timeoutMs: req.timeoutMs, signal: req.signal, memoryLimitBytes: req.memoryLimitBytes })); }
     req.signal?.throwIfAborted();
     return { ref: req.ref, sha, patch_sha256: review?.sha256 ?? null, files_touched: review?.files ?? [], flags: review?.flags ?? [], sandbox: probe.attestation, checks: results, verified: verdict(results, req.checks.length), started_at: new Date(started).toISOString(), duration_ms: Date.now() - started };
   } finally {

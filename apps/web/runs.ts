@@ -3,6 +3,15 @@
 import fs from 'fs';
 import path from 'path';
 import type { AgentEvent } from './agent.ts';
+import { redact } from './think-token-store.ts';
+
+/** A copy of `value` with every string passed through the secret redaction (keys, tokens, private keys, bearer headers). Numbers and structure are kept; depth is capped. */
+export function redactDeep<T>(value: T, depth = 0): T {
+  if (typeof value === 'string') return redact(value) as T;
+  if (depth > 8 || value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((v) => redactDeep(v, depth + 1)) as T;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactDeep(v, depth + 1)])) as T;
+}
 
 export type RunStatus = 'running' | 'completed' | 'failed' | 'stopped';
 
@@ -138,7 +147,8 @@ export class RunStore {
     return this.visible().slice(-limit).reverse();
   }
 
-  addEvent(run: RunRecord, event: AgentEvent): void {
+  addEvent(run: RunRecord, rawEvent: AgentEvent): void {
+    const event = redactDeep(rawEvent); // what is saved, and what the dashboard receives, never holds a secret a tool or a model repeated
     run.steps.push(event);
     run.current_step = event.step;
     if (event.kind === 'model') {
@@ -161,7 +171,11 @@ export class RunStore {
   onFinish?: (run: RunRecord) => void;
 
   finish(run: RunRecord, updates: Partial<RunRecord>): void {
-    Object.assign(run, updates);
+    Object.assign(run, updates, {
+      ...(updates.result !== undefined ? { result: redact(updates.result) } : {}),
+      ...(updates.error !== undefined ? { error: redact(updates.error) } : {}),
+      ...(updates.evidence_conflicts ? { evidence_conflicts: redactDeep(updates.evidence_conflicts) } : {}),
+    });
     run.ended_at = Date.now();
     run.duration_ms = run.ended_at - run.started_at;
     run.current_action = undefined;
