@@ -3842,3 +3842,6 @@ When a run has read a web page, feed or live lookup and the user's goal did not 
 
 ### P3.79: Tools > Audit & spend panel (PR #419)
 A read-only dashboard panel (`public/js/audit-panel.js`) over `/api/spend`, `/api/audit` and `/api/audit/verify`: spend today/7 days/all time, the daily and per-run limits with a warning bar at 80%, cost per model, the audit chain status and the newest 50 events. Text only, no HTML injection. Not browser-checked; no filters or paging. Evidence: `docs/evidence/p3.79-audit-spend-panel/RESULTS.md`.
+
+### P3.80: first-run setup, install script, run summary (PR #420)
+`GET /api/setup` and Tools > Get started (`setup-status.ts`, `public/js/setup-panel.js`): a checklist that opens by itself on a fresh install (no model connected). `kudbee init` (`init-env.ts`) creates an owner-only `.env` from the example; `install.sh` (`--check` is read-only) installs from a clone. `GET /api/runs/:id/summary` (`run-summary.ts`) feeds a plain card after each run. Not claimed: npx/npm publishing, macOS/Windows, browser check, running the install path itself. Evidence: `docs/evidence/p3.80-first-run/RESULTS.md`.

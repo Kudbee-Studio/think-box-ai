@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-08T13:14:14.129Z",
+  "head": "06f099b6",
+  "base": "gh/main",
+  "base_sha": "0ef45303",
+  "branch": "feat/pr420-p3.80-first-run-install-summary",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1353
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1597
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1534
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 7985
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 1254
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1620 passed, 0 failed; lines 92.87% (floor 90%)",
+      "ms": 76592
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 279269
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 134037
+    }
+  ],
+  "verdict": "PASS"
+}
