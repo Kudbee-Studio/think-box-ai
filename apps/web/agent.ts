@@ -1,5 +1,6 @@
 // kudbEE Worker Agent — tool-calling loop over an OpenAI-compatible provider (Inception Mercury 2).
 // Every tool is confined to the session workspace or to bounded HTTP(S) GETs; there is no shell access.
+import { fetchApprovingRedirects } from './net-guard.ts';
 import fs from 'fs';
 import path from 'path';
 import { ALGORAND_ACTIONS, algorandHost, algorandQuery, parseAction, parseNetwork, validateAlgorandInput } from './algorand.ts';
@@ -532,10 +533,10 @@ async function executeTool(name: string, args: Record<string, unknown>, hooks: A
     case 'fetch_url': {
       const url = new URL(String(args.url ?? ''));
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only http(s) URLs are allowed');
-      const response = await fetch(url, {
+      const response = await fetchApprovingRedirects(url.toString(), {
         headers: { 'User-Agent': 'kudbEE-Worker/1.0' },
         signal: AbortSignal.any([hooks.signal, AbortSignal.timeout(15000)]),
-      });
+      }, { approved: hooks.approvedDomains, ask: (to, reason) => hooks.requestApproval('fetch_url', { url: to, redirected: true }, reason) });
       const raw = await response.text();
       const type = response.headers.get('content-type') ?? '';
       const text = type.includes('html') ? htmlToText(raw) : raw;

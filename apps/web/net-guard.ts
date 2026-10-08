@@ -55,3 +55,32 @@ export async function fetchChecked(
   }
   throw new Error('Too many redirects');
 }
+
+/**
+ * `fetch_url` for the agent: the human approved the first host, so the first request goes out as is; every redirect hop is followed by hand and a hop to a host
+ * that is not approved yet asks the human first (naming both hosts, and saying so when the new host is a local or private address). Denied means the new
+ * host is never contacted. Only http(s) hops are followed, at most 5.
+ */
+export async function fetchApprovingRedirects(
+  rawUrl: string,
+  init: RequestInit,
+  gate: { approved: Set<string>; ask: (url: string, reason: string) => Promise<boolean> },
+  isPrivateUrl: (url: string) => Promise<boolean> = targetsPrivateNetwork,
+): Promise<Response> {
+  let url = rawUrl;
+  for (let hop = 0; hop < 5; hop++) {
+    const response = await fetch(url, { ...init, redirect: 'manual' });
+    const location = response.headers.get('location');
+    if (!(response.status >= 300 && response.status < 400 && location)) return response;
+    const next = new URL(location, url);
+    if (!['http:', 'https:'].includes(next.protocol)) throw new Error('Only http(s) URLs are allowed (a redirect pointed somewhere else)');
+    const from = new URL(url).hostname;
+    if (next.hostname !== from && !gate.approved.has(next.hostname)) {
+      const where = (await isPrivateUrl(next.toString())) ? ' (a local or private network address)' : '';
+      if (!(await gate.ask(next.toString(), `Redirected from ${from} to ${next.hostname}${where}`))) throw new Error(`Denied by human reviewer (redirect to ${next.hostname})`);
+      gate.approved.add(next.hostname);
+    }
+    url = next.toString();
+  }
+  throw new Error('Too many redirects');
+}
