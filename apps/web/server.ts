@@ -40,7 +40,9 @@ import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
 import { openAgentDraftPr } from './agent-pr.ts';
 import { runGit } from './git-run.ts';
 import { AuditLog, summarizeArgs } from './audit-log.ts';
+import { BudgetGuard, budgetConfig } from './budget-guard.ts';
 import { registerAuditRoutes } from './routes/audit.ts';
+import { registerSpendRoutes } from './routes/spend.ts';
 import { repoRoot } from './repo-tools.ts';
 import { definedChecks } from './scratch-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
@@ -262,7 +264,8 @@ const learningIntegration = new ServerLearningIntegration(thinkTokenPropagator, 
 const tokenStore = new SqliteTokenStore(process.env.KUDBEE_THINK_TOKEN_DB || path.join(dataDir, 'think-tokens.db'));
 // Start loading the embedding model in the background at boot (no-op when THINKBOX_EMBEDDINGS=off or the optional package is missing).
 peekEmbedder(); // always: a first goal right after a restart should not be ranked lexically while the model loads
-const dailyBudgetUsd = Number(process.env.KUDBEE_DAILY_BUDGET_USD) || 0;
+const spendGuard = new BudgetGuard(budgetConfig(), { costToday: () => runStore.costToday(), onWarn: (m) => { console.warn(`⚠ ${m}`); audit.record('budget_warning', 'system', m); }, onStop: (m, runId) => { audit.record('budget_stop', 'system', m, {}, runId ?? null); } });
+const dailyBudgetUsd = spendGuard.config.daily;
 const APPROVAL_TIMEOUT_MS = 120_000;
 fs.mkdirSync(workspaceRoot, { recursive: true });
 
@@ -1177,10 +1180,7 @@ export class AgentSession {
       },
       onFilesChanged: () => this.broadcast({ type: 'files_changed' }),
       signal,
-      checkBudget: () =>
-        dailyBudgetUsd > 0 && runStore.costToday() >= dailyBudgetUsd
-          ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
-          : null,
+      checkBudget: () => spendGuard.check(record.cost_usd, record.id),
       approvedDomains: this.approvedDomains,
       allowedTools: profile?.allowedTools,
       requestApproval: (tool, args, reason) => this.requestApproval(record.id, tool, args, reason),
@@ -1478,9 +1478,7 @@ export class AgentSession {
           },
           onFilesChanged: () => this.broadcast({ type: 'files_changed', data: { sessionId: allocation.thinkBoxId, jobId, specialistId: allocation.specialistId } }),
           signal: abort.signal,
-          checkBudget: () => dailyBudgetUsd > 0 && runStore.costToday() >= dailyBudgetUsd
-            ? `Daily budget of $${dailyBudgetUsd < 0.01 ? dailyBudgetUsd.toFixed(4) : dailyBudgetUsd.toFixed(2)} reached (KUDBEE_DAILY_BUDGET_USD)`
-            : null,
+          checkBudget: () => spendGuard.check(record.cost_usd, runId),
           approvedDomains: worker.approvedDomains,
           requestApproval: (tool: string, args: Record<string, unknown>, reason: string) => this.requestApproval(runId, tool, { ...args, specialistId: allocation.specialistId, thinkBoxId: allocation.thinkBoxId }, reason),
           remember: async (title: string, content: string, tags: string[]) => {
@@ -2232,6 +2230,7 @@ registerConvoyRoutes(app, {
   isHuman: isHumanReq,
 });
 registerAuditRoutes(app, audit);
+registerSpendRoutes(app, { runs: () => runStore.list(100000), budget: spendGuard.config });
 registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq, audit: (kind, actor, summary, detail) => { audit.record(kind, actor, summary, detail); } });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
