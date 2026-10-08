@@ -19,7 +19,6 @@ import type { IncomingMessage } from 'node:http';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { stripTypeScriptTypes } from 'node:module';
-import { execFile } from 'node:child_process';
 import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -39,6 +38,9 @@ import { ConvoyError, ConvoyStore } from './convoy.ts';
 import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './convoy-runner.ts';
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
 import { openAgentDraftPr } from './agent-pr.ts';
+import { runGit } from './git-run.ts';
+import { AuditLog, summarizeArgs } from './audit-log.ts';
+import { registerAuditRoutes } from './routes/audit.ts';
 import { repoRoot } from './repo-tools.ts';
 import { definedChecks } from './scratch-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
@@ -220,6 +222,8 @@ const profilesDir = path.join(dataDir, 'profiles');
 const profileManager = new ProfileManager(profilesDir, dataDir);
 const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
+const audit = new AuditLog(path.join(dataDir, 'audit.db'));
+runStore.onFinish = (r) => audit.record('run_finished', 'system', `${r.status}: ${r.goal.slice(0, 120)}`, { model: r.model, provider: r.provider, cost_usd: r.cost_usd, prompt_tokens: r.prompt_tokens, completion_tokens: r.completion_tokens, tool_calls: r.tool_calls, approvals: r.approvals, duration_ms: r.duration_ms, profile: r.profile_id }, r.id);
 /** Abort controllers of running convoys, so convoy_stop can stop exactly one. */
 const convoyAborts = new Map<string, AbortController>();
 /** Convoys whose draft pull request is being opened right now: a second click must not start a second push. */
@@ -279,15 +283,6 @@ function safeWorkspacePath(sessionId: string, relativePath: string): string {
   if (destination === root) return destination;
   if (!destination.startsWith(`${root}${path.sep}`)) throw new Error('Path escapes workspace');
   return destination;
-}
-
-function runGit(args: string[], cwd?: string): Promise<{ stdout: string; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    execFile('git', args, { cwd, encoding: 'utf8', timeout: 120000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) reject(err);
-      else resolve({ stdout, stderr });
-    });
-  });
 }
 
 async function runGitAction(sessionId: string, action: string, input: PluginInput): Promise<PluginResult> {
@@ -1146,15 +1141,17 @@ export class AgentSession {
   requestApproval(runId: string, tool: string, args: Record<string, unknown>, reason: string): Promise<boolean> {
     const id = randomUUID();
     return new Promise((resolve) => {
-      const timer = setTimeout(() => this.resolveApproval(id, false), APPROVAL_TIMEOUT_MS);
+      const timer = setTimeout(() => this.resolveApproval(id, false, 'timeout'), APPROVAL_TIMEOUT_MS);
       this.pendingApprovals.set(id, { resolve, timer });
+      audit.record('approval_requested', 'agent', `${tool}: ${reason}`, { approval_id: id, tool, args: summarizeArgs(args), timeout_ms: APPROVAL_TIMEOUT_MS }, runId);
       this.broadcast({ type: 'approval_request', data: { id, run_id: runId, tool, args, reason, timeout_ms: APPROVAL_TIMEOUT_MS } });
     });
   }
 
-  resolveApproval(id: string, approved: boolean): void {
+  resolveApproval(id: string, approved: boolean, by = 'dashboard'): void {
     const pending = this.pendingApprovals.get(id);
     if (!pending) return;
+    audit.record('approval_resolved', by, approved ? 'approved' : by === 'timeout' ? 'denied (no answer in time)' : 'denied', { approval_id: id, approved });
     clearTimeout(pending.timer);
     this.pendingApprovals.delete(id);
     this.broadcast({ type: 'approval_resolved', data: { id, approved } });
@@ -1908,7 +1905,8 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
         }
 
         case 'repo_open_draft_pr': {
-          const r = await openAgentDraftPr({ root: activeRepos.active(profileManager.getActiveId())?.root, approve: (tool, args, reason) => session.requestApproval('agent-pr', tool, args, reason) }).catch((err) => ({ ok: false, error: scrubSecrets(errorMessage(err)) }));
+          const r = await openAgentDraftPr({ root: activeRepos.active(profileManager.getActiveId())?.root, approve: (tool, args, reason) => session.requestApproval('agent-pr', tool, args, reason) }).catch((err) => ({ ok: false as const, error: scrubSecrets(errorMessage(err)) }));
+          audit.record('draft_pr', 'human', r.ok ? `draft PR opened: ${r.url}` : `draft PR not opened: ${r.error}`, 'branch' in r && r.branch ? { branch: r.branch } : {});
           ws.send(JSON.stringify({ type: 'repo_pr_result', data: r })); break;
         }
         // Slice 4: a human turns a verified, accepted SIMULATE proposal into a DRAFT pull request on the configured repository. Off unless KUDBEE_DRAFT_PR=on.
@@ -2233,7 +2231,8 @@ registerConvoyRoutes(app, {
   },
   isHuman: isHumanReq,
 });
-registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq });
+registerAuditRoutes(app, audit);
+registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq, audit: (kind, actor, summary, detail) => { audit.record(kind, actor, summary, detail); } });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {

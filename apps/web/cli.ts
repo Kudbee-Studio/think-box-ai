@@ -19,6 +19,7 @@ import { localModelHint, resolveLocalModel, sameLocalModel } from './local-model
 import { loadMeasurements, pickMeasured } from './measured-routing.ts';
 import { formatCubeGrid, formatTokenDetail, formatTokenLine, openTokenReader, readHealth, readToken, readTokenCube, readTokenLinks, readTokens, thinkTokenDbPath } from './think-token-reader.ts';
 import { formatTokenHealth } from './think-token-health.ts';
+import { AuditLog } from './audit-log.ts';
 import { TOKEN_STATUSES, type TokenStatus } from './think-token-store.ts';
 import { TOKEN_HEADER, isLoopbackUrl, readLocalToken } from './local-token.ts';
 import { httpError } from './http-error.ts';
@@ -485,6 +486,7 @@ ${c.bold('MODELS & AGENTS')}
   /agent [NAME]       switch to an agent lane, or clear it (default worker, full tools)
   ${c.dim("kudbee run '<goal>'")}  one-shot goal (same as kudbee '<goal>'); ${c.dim("kudbee --agent hermes '<goal>'")} uses an agent lane
   ${c.dim('kudbee tokens list [--status S] [--run ID] [--json]')}  Think Tokens (same store as the dashboard)
+  ${c.dim('kudbee audit [--verify] [--kind K] [--run ID] [--limit N] [--json]')}  who approved what, and what runs cost; --verify checks the log was not altered
   ${c.dim('kudbee tokens health [--json]')}  how many tokens are used, waiting or stale
   ${c.dim('kudbee token cube <TT-id> [--events] [--json]')}  the token's 100-cell grid (ASCII) and its recent cell changes
   ${c.dim('kudbee tokens show <TT-id> [--json]')}  one token: lesson, score breakdown, run, ledger receipt
@@ -1120,6 +1122,26 @@ function selectModelForGoal(goal: string, client: Client): RouteTelemtry {
 }
 
 
+/** `kudbee audit [--verify] [--kind K] [--run ID] [--limit N] [--json]`: reads the same audit.db the server writes (read-only on the chain; nothing is added or removed). */
+function auditCommand(args: string[]): number {
+  const flag = (name: string): string | undefined => { const i = args.indexOf(name); if (i < 0) return undefined; const [, value] = args.splice(i, 2); return value; };
+  const json = args.includes('--json'); if (json) args.splice(args.indexOf('--json'), 1);
+  const verify = args.includes('--verify'); if (verify) args.splice(args.indexOf('--verify'), 1);
+  const kind = flag('--kind'); const run = flag('--run'); const limit = Number(flag('--limit')) || 50;
+  const file = path.join(DATA_DIR, 'audit.db');
+  if (!fs.existsSync(file)) { console.log(c.red(`No audit log at ${file}.`)); console.log(c.dim('Start the Agent OS and approve or run something, then try again.')); return 1; }
+  const log = new AuditLog(file);
+  try {
+    const verdict = log.chainStatus();
+    if (verify) { console.log(json ? JSON.stringify(verdict) : verdict.ok ? c.green(`audit log intact: ${verdict.entries} entries, newest row ${verdict.head?.slice(0, 16)} (note it down to detect a later cut)`) : c.red(`audit log BROKEN at entry ${verdict.broken_at}: ${verdict.reason}`)); return verdict.ok ? 0 : 1; }
+    const events = log.list({ limit, kind, run_id: run });
+    if (json) { console.log(JSON.stringify({ events, chain: verdict }, null, 2)); return 0; }
+    for (const e of events.reverse()) console.log(`${new Date(e.ts).toISOString().slice(0, 19)}  ${e.kind.padEnd(18)} ${e.actor.padEnd(10)} ${e.run_id ? e.run_id.slice(0, 8) : '        '}  ${e.summary}`);
+    console.log(c.dim(`${events.length} shown, newest last, chain ${verdict.ok ? 'intact' : 'BROKEN'} (${verdict.entries} entries), ${file}`));
+    return 0;
+  } finally { log.close(); }
+}
+
 /** `kudbee tokens list|show`: reads the same think-tokens.db the dashboard reads, through the one shared reader. */
 function tokensCommand(args: string[]): number {
   const flag = (name: string): string | undefined => {
@@ -1214,6 +1236,7 @@ async function main(): Promise<void> {
   }
   // Reading tokens needs no server and no WebSocket.
   if (process.argv[2] === 'tokens' || process.argv[2] === 'token') process.exit(tokensCommand(process.argv.slice(3)));
+  if (process.argv[2] === 'audit') process.exit(auditCommand(process.argv.slice(3)));
 
   await ensureServer();
   const client = new Client();

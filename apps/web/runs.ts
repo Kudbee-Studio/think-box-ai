@@ -157,12 +157,16 @@ export class RunStore {
     this.save();
   }
 
+  /** Called once a run is finished and saved (the audit log listens here). A listener that throws is ignored: it must not fail the run. */
+  onFinish?: (run: RunRecord) => void;
+
   finish(run: RunRecord, updates: Partial<RunRecord>): void {
     Object.assign(run, updates);
     run.ended_at = Date.now();
     run.duration_ms = run.ended_at - run.started_at;
     run.current_action = undefined;
     this.save();
+    try { this.onFinish?.(run); } catch { /* auditing must not fail a run */ }
   }
 
   costSince(since: number): number {

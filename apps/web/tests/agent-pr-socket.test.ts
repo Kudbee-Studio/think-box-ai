@@ -26,5 +26,7 @@ test('repo_open_draft_pr is refused with a plain reason when draft pull requests
     });
     ws.close();
     assert.equal(result.ok, false); assert.match(result.error ?? '', /KUDBEE_DRAFT_PR=on/);
+    const { events } = await (await fetch(`${base}/api/audit?kind=draft_pr`)).json() as { events: Array<{ actor: string; summary: string }> };
+    assert.deepEqual(events.map((e) => [e.actor, /^draft PR not opened: .*KUDBEE_DRAFT_PR=on/.test(e.summary)]), [['human', true]], 'the refused attempt is in the audit log');
   } finally { s.kill(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });
