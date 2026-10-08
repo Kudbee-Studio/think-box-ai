@@ -3839,3 +3839,6 @@ Survey of the 14 agent tools by effect and gate (table in `docs/evidence/p3.75-s
 
 ### P3.78: security item 10, `remember` asks after web reading (PR #418)
 When a run has read a web page, feed or live lookup and the user's goal did not ask to remember, `remember` asks a human first (`webObserved` in `RunContext`, reason "Saves to memory ... after reading a web page this run"). Proven with the scripted-obedient injection suite. Not gated: memories sourced from repo files only. Evidence: `docs/evidence/p3.78-security-remember/RESULTS.md`.
+
+### P3.79: Tools > Audit & spend panel (PR #419)
+A read-only dashboard panel (`public/js/audit-panel.js`) over `/api/spend`, `/api/audit` and `/api/audit/verify`: spend today/7 days/all time, the daily and per-run limits with a warning bar at 80%, cost per model, the audit chain status and the newest 50 events. Text only, no HTML injection. Not browser-checked; no filters or paging. Evidence: `docs/evidence/p3.79-audit-spend-panel/RESULTS.md`.
