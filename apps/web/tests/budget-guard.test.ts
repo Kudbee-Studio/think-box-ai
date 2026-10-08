@@ -42,5 +42,5 @@ test('80% of the daily budget warns once per day, not before, not at the limit, 
   today.v = 7.9; g.check(0, 'r'); assert.deepEqual(events, []);
   today.v = 8; g.check(0, 'r'); g.check(0, 'r'); assert.deepEqual(events, ['warn:80% of the daily budget is used: $8.00 of $10.00']);
   clock = Date.parse('2026-10-08T09:00:00'); today.v = 8.5; g.check(0, 'r'); assert.equal(events.length, 2);
-  today.v = 10; assert.match(String(g.check(0, 'r')), /^Daily budget/); assert.equal(events.filter((e) => e.startsWith('warn')).length, 2);
+  today.v = 10; assert.match(String(g.check(0, 'r')), /^Daily budget/); assert.equal((events as string[]).filter((e) => e.startsWith('warn')).length, 2);
 });
