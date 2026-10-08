@@ -91,3 +91,20 @@ export function rateLimit(options: { windowMs: number; max: number; crossSiteMax
     next();
   };
 }
+
+/**
+ * A cap on the WHOLE request body, ahead of a parser that holds it in memory (multer's per-file limit does not bound the total: 500 files of 50 MB each is 25 GB).
+ * `declaredTooLarge` refuses a body that announces more than the cap at once. `watchBody` counts what actually streams and answers 413 and closes the connection when it
+ * passes the cap (no length, or a lying one). Call `watchBody` AFTER the parser has attached to the request: listening for data earlier starts the stream flowing and the parser loses it.
+ */
+type BodyReq = HeaderReq & { on(event: 'data', cb: (chunk: Buffer) => void): unknown; destroy(): unknown; resume(): unknown };
+const tooLarge = (res: HeaderRes, maxBytes: number): void => { res.setHeader('Connection', 'close'); res.status(413).json({ error: 'payload_too_large', detail: `The upload is larger than the ${Math.round(maxBytes / 1024 / 1024)} MB limit` }); };
+export function declaredTooLarge(req: BodyReq, res: HeaderRes, maxBytes: number): boolean {
+  const declared = Number(first(req.headers['content-length']));
+  if (!(Number.isFinite(declared) && declared > maxBytes)) return false;
+  tooLarge(res, maxBytes); req.resume(); return true;
+}
+export function watchBody(req: BodyReq, res: HeaderRes, maxBytes: number): void {
+  let seen = 0; let refused = false;
+  req.on('data', (chunk) => { seen += chunk.length; if (seen > maxBytes && !refused) { refused = true; tooLarge(res, maxBytes); setImmediate(() => req.destroy()); } });
+}

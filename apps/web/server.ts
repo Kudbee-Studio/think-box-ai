@@ -1,7 +1,7 @@
 import { bridgeConfigFromEnv, submitGovernedRun, getGovernedRun } from './governed-bridge.ts';
 import { createGitRouter } from './git-api-routes.ts';
 import { fetchChecked, targetsPrivateNetwork } from './net-guard.ts';
-import { rateLimit, rejectCrossOriginWrites, securityHeaders } from './http-security.ts';
+import { declaredTooLarge, rateLimit, rejectCrossOriginWrites, securityHeaders, watchBody } from './http-security.ts';
 import { describeError, installProcessHandlers, jsonErrorHandler } from './error-handling.ts';
 import { sanitizeConfigPatch } from './config-patch.ts';
 import { discoverMCPSkills, filterSkills, groupSkillsByCategory } from './mcp-skills.ts';
@@ -162,18 +162,18 @@ function janusEnabled(): boolean {
 const defaultLocalModel = resolveLocalModel();
 const workspaceRoot = process.env.KUDBEE_WORKSPACE_DIR || path.join(__dirname, 'workspaces');
 /** multer (~35 ms to load) is only needed when someone uploads: build the instance on the first upload request. */
-function lazyUpload(limits: { fileSize: number; files: number }) {
+function lazyUpload(limits: { fileSize: number; files: number }, maxTotalBytes: number) {
   let instance: Promise<import('multer').Multer> | undefined;
   const get = () => (instance ??= import('multer').then(({ default: multer }) => multer({ storage: multer.memoryStorage(), limits })));
   const wrap = (pick: (m: import('multer').Multer) => import('express').RequestHandler): import('express').RequestHandler =>
-    (req, res, next) => { get().then((m) => pick(m)(req, res, next), next); };
+    (req, res, next) => { if (!declaredTooLarge(req, res, maxTotalBytes)) get().then((m) => { pick(m)(req, res, next); watchBody(req, res, maxTotalBytes); }, next); };
   return {
     single: (field: string) => wrap((m) => m.single(field)),
     array: (field: string, max: number) => wrap((m) => m.array(field, max)),
   };
 }
-const upload = lazyUpload({ fileSize: 50 * 1024 * 1024, files: 500 });
-const imageUpload = lazyUpload({ fileSize: 12 * 1024 * 1024, files: 1 });
+const upload = lazyUpload({ fileSize: 50 * 1024 * 1024, files: 500 }, (Number(process.env.KUDBEE_UPLOAD_MAX_MB) || 256) * 1024 * 1024);
+const imageUpload = lazyUpload({ fileSize: 12 * 1024 * 1024, files: 1 }, 16 * 1024 * 1024);
 
 app.use((req: Request, res: Response, next) => {
   if (isAllowedHost(req.headers.host, PORT_NUM)) return next();
