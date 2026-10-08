@@ -32,5 +32,5 @@ test('first goal is done once any run exists; the spend limit step reads the bud
 });
 
 test('the result never contains a key value', () => {
-  assert.ok(!JSON.stringify(setupSteps({ env: { INCEPTION_API_KEY: 'sk-live-secret1234567890' }, ollamaReachable: false, runs: 0 })).includes('secret1234567890'));
+  assert.ok(!JSON.stringify(setupSteps({ env: { INCEPTION_API_KEY: 'sk-live-secret1234567890' }, ollamaReachable: false, runs: 0 })).includes('secret1234567890')); // secret-scan:ignore (fixture)
 });
