@@ -36,6 +36,8 @@ export interface RunRecord {
   cost_usd: number;
   approvals: { approved: number; denied: number };
   files: string[];
+  /** The cloned repository the agent was working on when the run started (active-repo.ts), if one was chosen. */
+  repo?: string;
   /** Memory ids injected into the prompt at run start. */
   recalled?: string[];
   /** Think Token ids (ADR 028) injected into the planner context for this run. */

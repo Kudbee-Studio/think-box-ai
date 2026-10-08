@@ -384,3 +384,13 @@ a.btn-secondary { text-decoration: none; display: inline-flex; align-items: cent
 .setup-todo .setup-mark { color: #d29922; }
 .setup-hint { color: #8b949e; word-break: break-word; }
 @media (max-width: 640px) { .setup-step { grid-template-columns: 1fr; } }
+
+/* Project panel */
+.project-head { display: flex; gap: .75rem; align-items: baseline; margin-bottom: .5rem; }
+.project-name { font-size: 1.15rem; font-weight: 600; }
+.project-remote, .project-note, .project-subtitle { color: #8b949e; font-size: .85rem; }
+.project-next { color: #d29922; margin: .2rem 0; }
+.project-section { margin: .8rem 0; }
+.project-title { font-weight: 600; margin-bottom: .25rem; }
+.project-row { padding: .2rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); word-break: break-word; font-size: .9rem; }
+.project-run-failed { color: #f85149; }

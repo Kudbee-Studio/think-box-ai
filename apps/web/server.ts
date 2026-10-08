@@ -1141,7 +1141,7 @@ export class AgentSession {
       completion_tokens: 0,
       cost_usd: 0,
       approvals: { approved: 0, denied: 0 },
-      files: [],
+      files: [], repo: activeRepos.active(profileManager.getActiveId())?.name,
     });
   }
 
@@ -2233,7 +2233,7 @@ registerConvoyRoutes(app, {
 registerAuditRoutes(app, audit);
 registerSpendRoutes(app, { runs: () => runStore.list(100000), budget: spendGuard.config });
 registerDoctorRoutes(app, { repoRoot: path.resolve(__dirname, '..', '..'), dataDir, env: process.env, webDir: __dirname });
-registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq, audit: (kind, actor, summary, detail) => { audit.record(kind, actor, summary, detail); } });
+registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq, audit: (kind, actor, summary, detail) => { audit.record(kind, actor, summary, detail); }, project: { runs: () => runStore.list(100000), audit: () => audit.list({ limit: 200 }), tokens: () => readTokens(tokenStore) } });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────
 app.get('/api/algorand', async (req: Request, res: Response) => {
