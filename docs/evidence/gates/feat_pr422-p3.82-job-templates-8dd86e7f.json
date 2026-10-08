@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-08T15:13:07.748Z",
+  "head": "8dd86e7f",
+  "base": "gh/main",
+  "base_sha": "4c3cab63",
+  "branch": "feat/pr422-p3.82-job-templates",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 2112
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1768
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 2022
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 10782
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 1713
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1643 passed, 0 failed; lines 92.91% (floor 90%)",
+      "ms": 94925
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 703052
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 335865
+    }
+  ],
+  "verdict": "PASS"
+}
