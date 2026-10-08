@@ -9,7 +9,7 @@ import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { freePort } from './helpers/free-port.ts';
-import { call, say, startMockInception, type MockInception } from './helpers/mock-inception.ts';
+import { call, startMockInception, type MockInception } from './helpers/mock-inception.ts';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let mock: MockInception; let tmp = ''; const servers: ChildProcess[] = [];
