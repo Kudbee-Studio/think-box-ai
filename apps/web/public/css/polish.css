@@ -394,3 +394,11 @@ a.btn-secondary { text-decoration: none; display: inline-flex; align-items: cent
 .project-title { font-weight: 600; margin-bottom: .25rem; }
 .project-row { padding: .2rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); word-break: break-word; font-size: .9rem; }
 .project-run-failed { color: #f85149; }
+
+/* Job templates panel */
+.jobs-card { padding: .6rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); display: grid; gap: .35rem; }
+.jobs-name { font-weight: 600; }
+.jobs-desc { color: #8b949e; font-size: .9rem; }
+.jobs-input { width: 100%; box-sizing: border-box; }
+.jobs-warning { color: #d29922; margin-bottom: .5rem; }
+.jobs-use { justify-self: start; }
