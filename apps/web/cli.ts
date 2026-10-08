@@ -4,6 +4,7 @@
 //   kudbee --yes "<goal>"  same, auto-approving gated tool calls (overwrites, new domains)
 //   kudbee tokens list|show  read Think Tokens from the same think-tokens.db the dashboard uses (no server needed)
 import { lockDataDir } from './data-permissions.ts';
+import { initEnv } from './init-env.ts';
 import { renderDoctor, runDoctor } from './doctor.ts';
 import { writeBaseline } from './secret-scan.ts';
 import { spawn } from 'node:child_process';
@@ -1272,6 +1273,7 @@ async function main(): Promise<void> {
   // Reading tokens needs no server and no WebSocket.
   if (process.argv[2] === 'tokens' || process.argv[2] === 'token') process.exit(tokensCommand(process.argv.slice(3)));
   if (process.argv[2] === 'audit') process.exit(auditCommand(process.argv.slice(3)));
+  if (process.argv[2] === 'init') { try { console.log(initEnv(path.resolve(__dirname, '..', '..')).message); process.exit(0); } catch (e) { console.error(String((e as Error).message)); process.exit(1); } }
   if (process.argv[2] === 'doctor') process.exit(await doctorCommand(process.argv.slice(3)));
   if (process.argv[2] === 'spend') process.exit(spendCommand(process.argv.slice(3)));
 

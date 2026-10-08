@@ -6,6 +6,7 @@ import { SDK_VERSION, loadConfigFromEnv } from '../sdk/index.ts';
 import { errorMessage } from '../types.ts';
 import type { MemoryStore } from '../memory.ts';
 import type { RunStore } from '../runs.ts';
+import { registerSetupRoute } from './setup.ts';
 import type { Request } from './types.ts';
 
 export interface DiagnosticsSession {
@@ -61,6 +62,8 @@ export function registerDiagnosticsRoutes(app: Express, deps: DiagnosticsDeps): 
       };
     }
   }
+
+  registerSetupRoute(app, { runCount: () => deps.runStore.list(100000).length, ollamaBaseUrl: deps.ollamaBaseUrl, env: process.env });
 
   app.get('/api/health', (_req: Request, res: Response) => {
     const sdkConfig = loadConfigFromEnv();

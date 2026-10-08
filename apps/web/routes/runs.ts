@@ -3,6 +3,7 @@
 import type { Express, Response } from 'express';
 import type { PersistenceLayer } from '../persistence.ts';
 import type { RunRecord, RunStore } from '../runs.ts';
+import { summarizeRun } from '../run-summary.ts';
 import type { Request } from './types.ts';
 
 export interface RunsRouteDeps {
@@ -68,6 +69,12 @@ export function registerRunsRoutes(app: Express, deps: RunsRouteDeps): void {
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
+  });
+
+  app.get('/api/runs/:id/summary', (req: Request, res: Response) => {
+    const run = runStore.get(req.params.id);
+    if (!run) return res.status(404).json({ error: 'Run not found' });
+    res.json(summarizeRun(run));
   });
 
   app.get('/api/runs/:id', (req: Request, res: Response) => {

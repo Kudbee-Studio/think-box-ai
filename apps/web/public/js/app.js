@@ -249,6 +249,7 @@ function handleMessage(msg) {
       refreshFiles();
       refreshStats();
       refreshRuns();
+      showRunSummary(r.run_id);
       enableInput(true);
       break;
     }
@@ -1711,6 +1712,12 @@ function approvalTitle(tool) {
 }
 
 let approvalTicker = null;
+/** After a run: one plain card (what changed, cost, what to do next) from the saved run record. Silent if it cannot be fetched. */
+function showRunSummary(runId) {
+  if (!runId || !window.runSummaryText) return;
+  fetch(`/api/runs/${encodeURIComponent(runId)}/summary`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((s) => { const text = s && window.runSummaryText(s); if (text) appendTerminalMessage('system', text); }).catch(() => {});
+}
+
 function showNextApproval() {
   const modal = document.getElementById('approval-modal');
   const next = state.approvals[0];

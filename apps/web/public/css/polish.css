@@ -375,3 +375,12 @@ a.btn-secondary { text-decoration: none; display: inline-flex; align-items: cent
 .audit-event { display: grid; grid-template-columns: 9.5rem 9rem 6rem 5rem 1fr; gap: .5rem; padding: .3rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); align-items: baseline; }
 .audit-summary { word-break: break-word; }
 @media (max-width: 640px) { .audit-event { grid-template-columns: 1fr; } }
+
+/* Get started panel */
+.setup-lead { margin: 0 0 .6rem; }
+.setup-step { display: grid; grid-template-columns: 4.5rem 12rem 1fr; gap: .5rem; align-items: baseline; padding: .35rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); }
+.setup-mark { font-size: .75rem; font-weight: 600; text-transform: uppercase; }
+.setup-done .setup-mark { color: #3fb950; }
+.setup-todo .setup-mark { color: #d29922; }
+.setup-hint { color: #8b949e; word-break: break-word; }
+@media (max-width: 640px) { .setup-step { grid-template-columns: 1fr; } }
