@@ -3,6 +3,9 @@
 //   kudbee "<goal>"        run one goal with the worker agent and exit
 //   kudbee --yes "<goal>"  same, auto-approving gated tool calls (overwrites, new domains)
 //   kudbee tokens list|show  read Think Tokens from the same think-tokens.db the dashboard uses (no server needed)
+import { lockDataDir } from './data-permissions.ts';
+import { renderDoctor, runDoctor } from './doctor.ts';
+import { writeBaseline } from './secret-scan.ts';
 import { spawn } from 'node:child_process';
 import readline from 'node:readline';
 import path from 'node:path';
@@ -1144,6 +1147,16 @@ function spendCommand(args: string[]): number {
   return 0;
 }
 
+/** `kudbee doctor [--online] [--fix] [--baseline]`: one pass over permissions, secrets, bind address and dependencies. `--fix` locks the data folder; `--baseline` accepts today's secret-scan findings after you have looked at them. */
+async function doctorCommand(args: string[]): Promise<number> {
+  const repoRoot = path.resolve(__dirname, '..', '..');
+  if (args.includes('--baseline')) { console.log(`secret-scan baseline written: ${writeBaseline(repoRoot)} findings accepted (docs/security/secret-scan-baseline.json). A real key listed there must still be rotated.`); return 0; }
+  if (args.includes('--fix')) console.log(`locked ${lockDataDir(DATA_DIR)} entries in ${DATA_DIR}`);
+  const report = await runDoctor({ repoRoot, dataDir: DATA_DIR, env: process.env, online: args.includes('--online'), webDir: __dirname });
+  console.log(renderDoctor(report));
+  return report.ok ? 0 : 1;
+}
+
 /** `kudbee audit [--verify] [--kind K] [--run ID] [--limit N] [--json]`: reads the same audit.db the server writes (read-only on the chain; nothing is added or removed). */
 function auditCommand(args: string[]): number {
   const flag = (name: string): string | undefined => { const i = args.indexOf(name); if (i < 0) return undefined; const [, value] = args.splice(i, 2); return value; };
@@ -1259,6 +1272,7 @@ async function main(): Promise<void> {
   // Reading tokens needs no server and no WebSocket.
   if (process.argv[2] === 'tokens' || process.argv[2] === 'token') process.exit(tokensCommand(process.argv.slice(3)));
   if (process.argv[2] === 'audit') process.exit(auditCommand(process.argv.slice(3)));
+  if (process.argv[2] === 'doctor') process.exit(await doctorCommand(process.argv.slice(3)));
   if (process.argv[2] === 'spend') process.exit(spendCommand(process.argv.slice(3)));
 
   await ensureServer();

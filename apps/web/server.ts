@@ -43,6 +43,9 @@ import { AuditLog, summarizeArgs } from './audit-log.ts';
 import { BudgetGuard, budgetConfig } from './budget-guard.ts';
 import { registerAuditRoutes } from './routes/audit.ts';
 import { registerSpendRoutes } from './routes/spend.ts';
+import { registerDoctorRoutes } from './routes/doctor.ts';
+import { secureDataDir } from './data-permissions.ts';
+import { createMessageLimiter, WS_MAX_BYTES } from './ws-limits.ts';
 import { repoRoot } from './repo-tools.ts';
 import { definedChecks } from './scratch-runner.ts';
 import { evaluatePolicy, planConvoy } from './mayor.ts';
@@ -134,7 +137,7 @@ const cliUpgrades = new WeakSet<IncomingMessage>();
 const mirrors = new Set<WebSocket>();
 const MIRRORED_TYPES = new Set(['thought', 'result', 'queued', 'run_update', 'think_token_learned', 'think_token_used']);
 const wss = new WebSocketServer({
-  server,
+  server, maxPayload: WS_MAX_BYTES, // a bigger frame closes the connection before it is buffered whole
   // Browsers always send Origin on a WebSocket upgrade. A missing Origin means a non-browser client;
   // the kudbee CLI and tests send ours, so no-Origin clients are refused unless explicitly allowed.
   verifyClient: ({ origin, req }: { origin: string; req: IncomingMessage }) => {
@@ -217,6 +220,7 @@ const monitorAgent = {
 };
 const serverStartedAt = Date.now();
 const dataDir = process.env.KUDBEE_DATA_DIR || path.join(__dirname, 'data');
+secureDataDir(dataDir); // run history, audit log and tokens are for the owner only (700 folders, 600 files)
 // Profiles: named operating contexts. Each profile owns its memory folder and run file; the active
 // profile decides which the server reads/writes. The manager is created first so the stores can be
 // scoped to the currently active profile.
@@ -1828,14 +1832,11 @@ wss.on('connection', async (ws: WebSocket, req: IncomingMessage) => {
     }),
   );
 
+  const allow = createMessageLimiter();
   ws.on('message', async (raw: RawData) => {
     try {
-      // Defensive: Limit message size to prevent DoS; 1MB should be plenty for any legitimate message
+      if (!allow()) { ws.send(JSON.stringify({ type: 'error', data: 'Too many messages; slow down' })); return; }
       const rawStr = raw.toString();
-      if (rawStr.length > 1_000_000) {
-        ws.send(JSON.stringify({ type: 'error', data: 'Message too large (max 1MB)' }));
-        return;
-      }
 
       const msg = JSON.parse(rawStr) as WsMessage;
       if (!msg || typeof msg !== 'object' || !msg.type) {
@@ -2231,6 +2232,7 @@ registerConvoyRoutes(app, {
 });
 registerAuditRoutes(app, audit);
 registerSpendRoutes(app, { runs: () => runStore.list(100000), budget: spendGuard.config });
+registerDoctorRoutes(app, { repoRoot: path.resolve(__dirname, '..', '..'), dataDir, env: process.env, webDir: __dirname });
 registerActiveRepoRoutes(app, { manager: activeRepos, profileId: () => profileManager.getActiveId(), isHuman: isHumanReq, audit: (kind, actor, summary, detail) => { audit.record(kind, actor, summary, detail); } });
 
 // ─── Algorand (read-only, public AlgoNode endpoints) ───────────

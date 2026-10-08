@@ -349,3 +349,14 @@ a.btn-secondary { text-decoration: none; display: inline-flex; align-items: cent
 .change-diff { margin: 0; padding: 8px; max-height: 220px; overflow: auto; background: var(--bg-primary); color: var(--text-secondary); font-size: 10px; line-height: 1.4; white-space: pre; border-top: 1px solid var(--border-light); }
 .change-diff .diff-add { color: #34d399; }
 .change-diff .diff-del { color: #f87171; }
+
+/* Health check panel */
+.doctor-row { display: grid; grid-template-columns: 4.5rem 11rem 1fr; gap: .5rem; align-items: baseline; padding: .35rem 0; border-bottom: 1px solid var(--border-light, #2a2f3a); }
+.doctor-tag { font-size: .75rem; font-weight: 600; text-transform: uppercase; }
+.doctor-ok .doctor-tag { color: #3fb950; }
+.doctor-warn .doctor-tag { color: #d29922; }
+.doctor-fail .doctor-tag { color: #f85149; }
+.doctor-skipped .doctor-tag { color: #8b949e; }
+.doctor-detail { color: #8b949e; word-break: break-word; }
+.doctor-summary { margin: .6rem 0; }
+@media (max-width: 640px) { .doctor-row { grid-template-columns: 1fr; } }

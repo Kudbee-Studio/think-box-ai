@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { auditVerdict, parseAudit } from '../../dep-audit.ts';
+import { loadBaseline, scanHistory, scanTracked, withoutBaseline } from '../../secret-scan.ts';
 import { alertVerdict, coverageVerdict, overallVerdict, parseGateArgs, parseSarif, renderReport, selectedSteps, type GateOptions, type GateReport, type GateStep, type StepResult } from '../../gates.ts';
 
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -54,6 +56,22 @@ function npmStep(step: GateStep, script: string): void {
   const log = path.join(logDir, `${step}.log`);
   const r = run('npm', ['run', script], webDir, log);
   record(step, r.code === 0 ? 'pass' : 'fail', r.code === 0 ? `npm run ${script}` : `exit ${r.code}: ${tail(r.out)} (full log ${log})`, t);
+}
+
+function secretsStep(): void {
+  const t = Date.now();
+  const baseline = loadBaseline(root);
+  const tracked = withoutBaseline(scanTracked(root), baseline);
+  const hist = withoutBaseline(scanHistory(root), baseline);
+  const where = [...tracked, ...hist].slice(0, 5).map((f) => `${f.file}${f.line ? `:${f.line}` : ''} ${f.rule}${f.commit ? ` @${f.commit}` : ''}`).join('; ');
+  record('secrets', tracked.length + hist.length ? 'fail' : 'pass', tracked.length + hist.length ? `${tracked.length} new in files, ${hist.length} new in history: ${where}` : `0 new (baseline holds ${baseline.size})`, t);
+}
+
+function auditStep(): void {
+  const t = Date.now();
+  const r = run('npm', ['audit', '--json'], webDir);
+  const v = auditVerdict(parseAudit(r.out));
+  record('audit', v.status === 'pass' ? 'pass' : v.status === 'fail' ? 'fail' : 'not_run', v.detail, t);
 }
 
 function testsStep(): void {
@@ -118,11 +136,13 @@ function codeqlStep(step: 'codeql-js' | 'codeql-py'): void {
 }
 
 const wanted = selectedSteps(opts);
-for (const step of ['lint', 'typecheck', 'tsc', 'tests', 'codeql-js', 'codeql-py'] as const) {
+for (const step of ['lint', 'typecheck', 'tsc', 'secrets', 'audit', 'tests', 'codeql-js', 'codeql-py'] as const) {
   if (!wanted.includes(step)) { results.push({ step, status: 'skipped', detail: 'not requested', ms: 0 }); continue; }
   if (step === 'lint') npmStep(step, 'lint');
   else if (step === 'typecheck') npmStep(step, 'typecheck');
   else if (step === 'tsc') npmStep(step, 'typecheck:tsc');
+  else if (step === 'secrets') secretsStep();
+  else if (step === 'audit') auditStep();
   else if (step === 'tests') testsStep();
   else codeqlStep(step);
 }
