@@ -8,10 +8,10 @@ const res = (rule: string, uri: string, line: number, hash: string | undefined, 
   ...(hash ? { partialFingerprints: { primaryLocationLineHash: hash } } : {}),
 });
 
-test('steps: default is all six in fixed order; --only picks, --skip removes, "codeql" is both languages', () => {
-  assert.deepEqual(selectedSteps(parseGateArgs([])), ['lint', 'typecheck', 'tsc', 'tests', 'codeql-js', 'codeql-py']);
+test('steps: default is all eight in fixed order; --only picks, --skip removes, "codeql" is both languages', () => {
+  assert.deepEqual(selectedSteps(parseGateArgs([])), ['lint', 'typecheck', 'tsc', 'secrets', 'audit', 'tests', 'codeql-js', 'codeql-py']);
   assert.deepEqual(selectedSteps(parseGateArgs(['--only', 'tests,lint'])), ['lint', 'tests']);
-  assert.deepEqual(selectedSteps(parseGateArgs(['--skip', 'codeql'])), ['lint', 'typecheck', 'tsc', 'tests']);
+  assert.deepEqual(selectedSteps(parseGateArgs(['--skip', 'codeql'])), ['lint', 'typecheck', 'tsc', 'secrets', 'audit', 'tests']);
   assert.deepEqual(selectedSteps(parseGateArgs(['--only', 'codeql', '--skip', 'codeql-py'])), ['codeql-js']);
 });
 

@@ -1,7 +1,7 @@
 // Local gates: the pass/fail rules behind `npm run gates`. GitHub Actions is billing-locked, so these checks are the only ones that run before a merge.
 // Everything here is pure (no process, no file, no network) so the rules are tested; the runner that spawns lint/tsc/tests/CodeQL is tests/e2e/gates.ts.
 
-export const GATE_STEPS = ['lint', 'typecheck', 'tsc', 'tests', 'codeql-js', 'codeql-py'] as const;
+export const GATE_STEPS = ['lint', 'typecheck', 'tsc', 'secrets', 'audit', 'tests', 'codeql-js', 'codeql-py'] as const;
 export type GateStep = (typeof GATE_STEPS)[number];
 export const DEFAULT_MIN_COVERAGE = 90;
 
