@@ -10,7 +10,7 @@ const fakeKey = ['sk', 'live', 'abcdefghij1234567890wxyz'].join('-');
 const fakePem = ['-----BEGIN', 'RSA PRIVATE KEY-----'].join(' ');
 
 test('scanText finds keys, private keys and assigned secrets, with line numbers and a masked preview', () => {
-  const found = scanText(`line one\nconst k = "${fakeKey}";\n${fakePem}\npassword = "hunter2hunter2"\n`, 'a.ts');
+  const found = scanText(`line one\nconst k = "${fakeKey}";\n${fakePem}\npassword = "hunter2hunter2"\n`, 'a.ts'); // secret-scan:ignore (deliberate fixture)
   assert.deepEqual(found.map((f) => [f.line, f.rule]), [[2, 'key'], [3, 'private-key'], [4, 'assigned-secret']]);
   assert.ok(found.every((f) => !f.preview.includes('abcdefghij1234567890wxyz') && !f.preview.includes('hunter2hunter2')), 'a finding never repeats the secret');
 });
