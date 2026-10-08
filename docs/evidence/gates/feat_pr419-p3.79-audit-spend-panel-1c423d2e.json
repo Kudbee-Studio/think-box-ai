@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-08T12:46:01.296Z",
+  "head": "1c423d2e",
+  "base": "gh/main",
+  "base_sha": "e20c092f",
+  "branch": "feat/pr419-p3.79-audit-spend-panel",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1935
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1812
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1912
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 21)",
+      "ms": 9626
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 681
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1599 passed, 0 failed; lines 92.86% (floor 90%)",
+      "ms": 76904
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 583089
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 271289
+    }
+  ],
+  "verdict": "PASS"
+}
