@@ -19,7 +19,7 @@ test('records events in order with a chain, lists newest first, filters by kind 
   assert.equal(all[2]!.prev_hash, '0'.repeat(64)); assert.equal(all[1]!.prev_hash, all[2]!.hash);
   assert.deepEqual(log.list({ kind: 'approval_resolved' }).map((e) => e.actor), ['dashboard']);
   assert.deepEqual(log.list({ run_id: 'run-1' }).length, 2); assert.equal(log.list({ since: 2500 }).length, 1); assert.equal(log.list({ limit: 1 }).length, 1);
-  const v = log.verify(); assert.deepEqual([v.ok, v.entries, v.head], [true, 3, all[0]!.hash]); log.close();
+  const v = log.chainStatus(); assert.deepEqual([v.ok, v.entries, v.head], [true, 3, all[0]!.hash]); log.close();
 });
 
 test('secrets in the summary, the detail and the actor are redacted before they are stored', () => {
@@ -40,19 +40,19 @@ test('tool arguments are summarised: names, sizes and a short start, never whole
 test('an edited row is detected, with the row it happened at', () => {
   const f = file(); const log = new AuditLog(f); for (let i = 0; i < 4; i++) log.record('run_finished', 'system', `run ${i}`, { cost_usd: 0.01 }, `r${i}`); log.close();
   tamper(f, "UPDATE audit_events SET summary = 'completed: nothing happened' WHERE seq = 3");
-  const v = new AuditLog(f).verify(); assert.equal(v.ok, false); assert.equal(v.broken_at, 3); assert.match(v.reason ?? '', /changed after it was written/);
+  const v = new AuditLog(f).chainStatus(); assert.equal(v.ok, false); assert.equal(v.broken_at, 3); assert.match(v.reason ?? '', /changed after it was written/);
 });
 
 test('a removed row, an inserted row and a reordered pair are detected', () => {
   const mk = (): string => { const f = file(); const log = new AuditLog(f); for (let i = 0; i < 4; i++) log.record('run_finished', 'system', `run ${i}`); log.close(); return f; };
-  const removed = mk(); tamper(removed, 'DELETE FROM audit_events WHERE seq = 2'); const r = new AuditLog(removed).verify(); assert.equal(r.ok, false); assert.equal(r.broken_at, 3); assert.match(r.reason ?? '', /removed, inserted or reordered/);
-  const reordered = mk(); tamper(reordered, 'UPDATE audit_events SET seq = 99 WHERE seq = 2; UPDATE audit_events SET seq = 2 WHERE seq = 3; UPDATE audit_events SET seq = 3 WHERE seq = 99'); assert.equal(new AuditLog(reordered).verify().ok, false);
-  const last = mk(); tamper(last, 'DELETE FROM audit_events WHERE seq = 4'); const cut = new AuditLog(last).verify(); assert.deepEqual([cut.ok, cut.entries], [true, 3]); // the tail can be cut off undetected: the chain proves order and edits, not completeness
+  const removed = mk(); tamper(removed, 'DELETE FROM audit_events WHERE seq = 2'); const r = new AuditLog(removed).chainStatus(); assert.equal(r.ok, false); assert.equal(r.broken_at, 3); assert.match(r.reason ?? '', /removed, inserted or reordered/);
+  const reordered = mk(); tamper(reordered, 'UPDATE audit_events SET seq = 99 WHERE seq = 2; UPDATE audit_events SET seq = 2 WHERE seq = 3; UPDATE audit_events SET seq = 3 WHERE seq = 99'); assert.equal(new AuditLog(reordered).chainStatus().ok, false);
+  const last = mk(); tamper(last, 'DELETE FROM audit_events WHERE seq = 4'); const cut = new AuditLog(last).chainStatus(); assert.deepEqual([cut.ok, cut.entries], [true, 3]); // the tail can be cut off undetected: the chain proves order and edits, not completeness
 });
 
 test('the chain continues across a restart', () => {
   const f = file(); const a = new AuditLog(f); a.record('run_finished', 'system', 'one'); a.close();
-  const b = new AuditLog(f); b.record('run_finished', 'system', 'two'); const v = b.verify(); assert.deepEqual([v.ok, v.entries], [true, 2]); b.close();
+  const b = new AuditLog(f); b.record('run_finished', 'system', 'two'); const v = b.chainStatus(); assert.deepEqual([v.ok, v.entries], [true, 2]); b.close();
 });
 
 test('a failing write is reported once and never throws into the caller', () => {

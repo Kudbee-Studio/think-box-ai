@@ -1,5 +1,5 @@
 // A tamper-evident audit log (Layer 1): who decided what, and what it cost. One append-only SQLite file; every row carries the hash of the row before it,
-// so an edited, deleted or reordered row breaks the chain and `verify()` says where. It records facts about decisions, never file contents or secrets:
+// so an edited, deleted or reordered row breaks the chain and `chainStatus()` says where. It records facts about decisions, never file contents or secrets:
 // tool arguments are summarised (names, lengths, a short redacted start) and everything passes through the same secret redaction as Think Tokens.
 // Identity: the dashboard has no login yet, so the actor is the CHANNEL ("dashboard", "timeout", "local-token"), not a person. When accounts exist the actor becomes the user.
 import { createHash } from 'node:crypto';
@@ -72,7 +72,7 @@ export class AuditLog {
   }
 
   /** Walk the whole chain: every row must point at the hash of the one before and hash to its own stored hash. */
-  verify(): AuditVerdict {
+  chainStatus(): AuditVerdict {
     const rows = this.db.prepare('SELECT * FROM audit_events ORDER BY seq ASC').all() as Array<{ seq: number; ts: number; kind: string; actor: string; run_id: string | null; summary: string; detail: string; prev_hash: string; hash: string }>;
     let prev = GENESIS; let n = 0;
     for (const r of rows) {

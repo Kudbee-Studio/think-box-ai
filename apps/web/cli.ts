@@ -1132,7 +1132,7 @@ function auditCommand(args: string[]): number {
   if (!fs.existsSync(file)) { console.log(c.red(`No audit log at ${file}.`)); console.log(c.dim('Start the Agent OS and approve or run something, then try again.')); return 1; }
   const log = new AuditLog(file);
   try {
-    const verdict = log.verify();
+    const verdict = log.chainStatus();
     if (verify) { console.log(json ? JSON.stringify(verdict) : verdict.ok ? c.green(`audit log intact: ${verdict.entries} entries, newest row ${verdict.head?.slice(0, 16)} (note it down to detect a later cut)`) : c.red(`audit log BROKEN at entry ${verdict.broken_at}: ${verdict.reason}`)); return verdict.ok ? 0 : 1; }
     const events = log.list({ limit, kind, run_id: run });
     if (json) { console.log(JSON.stringify({ events, chain: verdict }, null, 2)); return 0; }
