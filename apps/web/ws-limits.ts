@@ -3,7 +3,7 @@ export const WS_MAX_BYTES = 1_000_000;
 
 /** A per-connection counter: call it once per message; false means "too many, drop this one". */
 export function createMessageLimiter(o: { max?: number; windowMs?: number; now?: () => number } = {}): () => boolean {
-  const max = o.max ?? 120;
+  const max = o.max ?? (Number(process.env.KUDBEE_WS_RATE) || 120); // KUDBEE_WS_RATE: messages per window; the default is far above what a person can click
   const windowMs = o.windowMs ?? 10_000;
   const now = o.now ?? Date.now;
   let start = now();

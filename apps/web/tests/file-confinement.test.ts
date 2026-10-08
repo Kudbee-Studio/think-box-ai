@@ -33,7 +33,7 @@ async function start(extra: Record<string, string> = {}): Promise<Server> {
       ...process.env, PORT: String(port), INCEPTION_API_KEY: 'test', INCEPTION_API_KEY_2: '', OLLAMA_BASE_URL: DEAD, JANUS_BASE_URL: DEAD,
       UPSTASH_VECTOR_REST_URL: DEAD, UPSTASH_VECTOR_REST_TOKEN: 'none', KUDBEE_DAILY_BUDGET_USD: '0',
       KUDBEE_DATA_DIR: path.join(dir, 'd'), KUDBEE_WORKSPACE_DIR: workspaces, KUDBEE_MEMORY_DIR: path.join(dir, 'm'),
-      THINKBOX_BACKEND_URL: DEAD, DASHBOARD_ENABLE_SHELL_EXEC: '', DASHBOARD_ALLOW_NO_ORIGIN: '', ...extra,
+      THINKBOX_BACKEND_URL: DEAD, DASHBOARD_ENABLE_SHELL_EXEC: '', DASHBOARD_ALLOW_NO_ORIGIN: '', KUDBEE_WS_RATE: '1000000', ...extra, // the 400-iteration race sends far more than a person would
     },
     stdio: 'ignore',
   });
