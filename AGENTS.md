@@ -3854,3 +3854,6 @@ Six ready goals (`job-templates.ts`, `routes/job-templates.ts`, `public/js/job-t
 
 ### P3.83: notifications (PR #423)
 `notify.ts` and `audit-notify.ts`: audit events (approval requested, budget warning/stop, run failed, optionally finished) are posted to `KUDBEE_NOTIFY_WEBHOOK` (Slack/Discord-compatible). `KUDBEE_NOTIFY_ON` picks topics; private webhook addresses need `KUDBEE_NOTIFY_ALLOW_PRIVATE=1`; repeats within 30 s and more than 20 a minute are dropped; the URL is never logged or returned. Get started has a Get notified step and a test button (`POST /api/notify/test`). Not tried against a real webhook. Evidence: `docs/evidence/p3.83-notifications/RESULTS.md`.
+
+### P3.84: Starfall linked from the dashboard (PR #424)
+A small browser arcade game (separate project `~/projects/starfall`, tested rules in `src/game.js`) is copied into `apps/web/public/game/` and served at `/game/`; the header has a Game link beside Website. Checked in Chromium through the dashboard (CSP applies). Not play-tested by a person; the copy is manual. Evidence: `docs/evidence/p3.84-game-link/RESULTS.md`.
