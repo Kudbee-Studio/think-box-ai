@@ -3851,3 +3851,6 @@ A read-only dashboard panel (`public/js/audit-panel.js`) over `/api/spend`, `/ap
 
 ### P3.82: Tools > Job templates (PR #422)
 Six ready goals (`job-templates.ts`, `routes/job-templates.ts`, `public/js/job-templates-panel.js`): explain the codebase, collect TODOs, review for bugs, fix a bug, document a file, write tests. They only fill the goal box. Each is limited to what a normal run can do (list/read/write files in the chosen repository) and says it cannot run code. No test-running or git-history templates, because a normal run has neither. Not run against a real model yet. Evidence: `docs/evidence/p3.82-job-templates/RESULTS.md`.
+
+### P3.83: notifications (PR #423)
+`notify.ts` and `audit-notify.ts`: audit events (approval requested, budget warning/stop, run failed, optionally finished) are posted to `KUDBEE_NOTIFY_WEBHOOK` (Slack/Discord-compatible). `KUDBEE_NOTIFY_ON` picks topics; private webhook addresses need `KUDBEE_NOTIFY_ALLOW_PRIVATE=1`; repeats within 30 s and more than 20 a minute are dropped; the URL is never logged or returned. Get started has a Get notified step and a test button (`POST /api/notify/test`). Not tried against a real webhook. Evidence: `docs/evidence/p3.83-notifications/RESULTS.md`.

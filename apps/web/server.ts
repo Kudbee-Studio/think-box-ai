@@ -39,7 +39,7 @@ import { executeConvoy, summarize as summarizeConvoy, type RunnerDeps } from './
 import { requestDraftPr, scrub as scrubSecrets } from './draft-pr.ts';
 import { openAgentDraftPr } from './agent-pr.ts';
 import { runGit } from './git-run.ts';
-import { AuditLog, summarizeArgs } from './audit-log.ts';
+import { openAuditLog, summarizeArgs } from './audit-notify.ts';
 import { BudgetGuard, budgetConfig } from './budget-guard.ts';
 import { registerAuditRoutes } from './routes/audit.ts';
 import { registerSpendRoutes } from './routes/spend.ts';
@@ -228,7 +228,7 @@ const profilesDir = path.join(dataDir, 'profiles');
 const profileManager = new ProfileManager(profilesDir, dataDir);
 const activeProfileId = profileManager.getActiveId();
 const runStore = new RunStore(path.join(profilesDir, activeProfileId, 'runs.json'), activeProfileId);
-const audit = new AuditLog(path.join(dataDir, 'audit.db'));
+const audit = openAuditLog(path.join(dataDir, 'audit.db'));
 runStore.onFinish = (r) => audit.record('run_finished', 'system', `${r.status}: ${r.goal.slice(0, 120)}`, { model: r.model, provider: r.provider, cost_usd: r.cost_usd, prompt_tokens: r.prompt_tokens, completion_tokens: r.completion_tokens, tool_calls: r.tool_calls, approvals: r.approvals, duration_ms: r.duration_ms, profile: r.profile_id }, r.id);
 /** Abort controllers of running convoys, so convoy_stop can stop exactly one. */
 const convoyAborts = new Map<string, AbortController>();

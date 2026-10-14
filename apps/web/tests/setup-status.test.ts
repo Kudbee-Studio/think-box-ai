@@ -34,3 +34,11 @@ test('first goal is done once any run exists; the spend limit step reads the bud
 test('the result never contains a key value', () => {
   assert.ok(!JSON.stringify(setupSteps({ env: { INCEPTION_API_KEY: 'sk-live-secret1234567890' }, ollamaReachable: false, runs: 0 })).includes('secret1234567890')); // secret-scan:ignore (fixture)
 });
+
+test('the notifications step is done only with a valid webhook, never shows it, and does not block ready', () => {
+  const none = setupSteps({ env: { INCEPTION_API_KEY: 'k' }, ollamaReachable: false, runs: 0 });
+  assert.equal(step(none, 'notifications').done, false); assert.equal(none.ready, true);
+  const on = setupSteps({ env: { INCEPTION_API_KEY: 'k', KUDBEE_NOTIFY_WEBHOOK: 'https://hooks.example.test/T/B/SECRETHOOK12345' }, ollamaReachable: false, runs: 0 });
+  assert.equal(step(on, 'notifications').done, true); assert.ok(!JSON.stringify(on).includes('SECRETHOOK12345'));
+  assert.equal(step(setupSteps({ env: { INCEPTION_API_KEY: 'k', KUDBEE_NOTIFY_WEBHOOK: 'nope' }, ollamaReachable: false, runs: 0 }), 'notifications').done, false);
+});
