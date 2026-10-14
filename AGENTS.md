@@ -3857,3 +3857,6 @@ Six ready goals (`job-templates.ts`, `routes/job-templates.ts`, `public/js/job-t
 
 ### P3.84: Starfall linked from the dashboard (PR #424)
 A small browser arcade game (separate project `~/projects/starfall`, tested rules in `src/game.js`) is copied into `apps/web/public/game/` and served at `/game/`; the header has a Game link beside Website. Checked in Chromium through the dashboard (CSP applies). Not play-tested by a person; the copy is manual. Evidence: `docs/evidence/p3.84-game-link/RESULTS.md`.
+
+### P3.85: Pinball linked from the dashboard (PR #425)
+A second browser arcade game (separate project `~/projects/pinball` v0.2: tested physics, table-feel panel, sound, hit effects) is copied into `apps/web/public/pinball/` and served at `/pinball/`; the header has a Pinball link beside the Game (Starfall) link. Checked in Chromium through the dashboard (CSP applies). Not play-tested by a person; the copy is manual. Evidence: `docs/evidence/p3.85-pinball-link/RESULTS.md`.

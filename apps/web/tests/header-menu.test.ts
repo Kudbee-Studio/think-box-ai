@@ -21,7 +21,7 @@ test('all 14 tool buttons are inside the Tools menu, each with a visible label, 
     assert.match(button, /<span class="tool-label">[^<]+<\/span>/, `${id} has a label`);
   }
   const outside = html.replace(menu, '');
-  for (const id of ['clear-chat', 'think-token-button', 'site-link', 'game-link', 'header-connection']) assert.ok(outside.includes(`id="${id}"`), `${id} stays in the header`);
+  for (const id of ['clear-chat', 'think-token-button', 'site-link', 'game-link', 'pinball-link', 'header-connection']) assert.ok(outside.includes(`id="${id}"`), `${id} stays in the header`);
   for (const id of TOOL_IDS) assert.ok(!outside.includes(`id="${id}"`), `${id} is not duplicated outside the menu`);
 });
 
