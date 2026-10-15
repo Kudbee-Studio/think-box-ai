@@ -5,7 +5,7 @@ import { draw } from './render.js';
 import { createSound } from './sound.js';
 import { createEffects, easeScore } from './effects.js';
 import { createRestartGuard } from './flow.js';
-import { buildTuningPanel, loadTuning } from './tuning-ui.js';
+import { buildTuningPanel, buildPresetBar, loadTuning } from './tuning-ui.js';
 
 const BEST_KEY = 'pinball-best';
 const TUNING_KEY = 'pinball-tuning';
@@ -23,7 +23,11 @@ const restartGuard = createRestartGuard(700);
 let savedBest = game.best;
 try { loadTuning(game, localStorage.getItem(TUNING_KEY)); sound.setMuted(localStorage.getItem(MUTE_KEY) === '1'); } catch { /* private window: settings are not remembered */ }
 const tuningHost = document.getElementById('tuning');
-tuningHost.appendChild(buildTuningPanel(document, game, (t) => { try { localStorage.setItem(TUNING_KEY, JSON.stringify(t)); } catch { /* not remembered */ } }));
+const saveTuning = (t) => { try { localStorage.setItem(TUNING_KEY, JSON.stringify(t)); } catch { /* not remembered */ } };
+const presetBar = buildPresetBar(document, game, (t) => { saveTuning(t); renderTuning(); });
+function renderTuning() { tuningHost.replaceChildren(buildTuningPanel(document, game, (t) => { saveTuning(t); presetBar.refresh(); })); }
+renderTuning();
+document.getElementById('presets').appendChild(presetBar);
 
 function startOrRestart() {
   if (game.state === 'over' && !restartGuard.allowed(performance.now())) return;

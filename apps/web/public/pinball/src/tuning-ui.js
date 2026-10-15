@@ -1,5 +1,5 @@
 // The tuning panel: one slider per setting in tuning.js, plus a reset button. Builds plain elements (text only) and reports every change, so the page can save it.
-import { RANGES, setTuning, resetTuning } from './tuning.js';
+import { RANGES, PRESETS, setTuning, resetTuning, applyPreset, presetOf } from './tuning.js';
 
 export function buildTuningPanel(doc, game, onChange = () => {}) {
   const box = doc.createElement('div'); box.className = 'tuning-box';
@@ -24,4 +24,19 @@ export function buildTuningPanel(doc, game, onChange = () => {}) {
 /** Saved settings from storage text, checked value by value (anything wrong is ignored). */
 export function loadTuning(game, text) {
   try { const saved = JSON.parse(text ?? 'null'); if (saved && typeof saved === 'object') for (const [k, v] of Object.entries(saved)) setTuning(game, k, v); } catch { /* unreadable: keep the defaults */ }
+}
+
+/** Easy / Normal / Hard buttons: one click sets every feel setting. The one that matches the current settings is shown as pressed (none when the settings are custom). */
+export function buildPresetBar(doc, game, onChange = () => {}) {
+  const bar = doc.createElement('div'); bar.className = 'preset-bar';
+  const buttons = {};
+  const refresh = () => { const now = presetOf(game.tuning); for (const [name, b] of Object.entries(buttons)) b.setAttribute('aria-pressed', String(name === now)); };
+  for (const name of Object.keys(PRESETS)) {
+    const b = doc.createElement('button'); b.type = 'button'; b.className = 'preset-button'; b.textContent = name[0].toUpperCase() + name.slice(1);
+    b.addEventListener('click', () => { applyPreset(game, name); refresh(); onChange(game.tuning); });
+    buttons[name] = b; bar.appendChild(b);
+  }
+  refresh();
+  bar.refresh = refresh;
+  return bar;
 }

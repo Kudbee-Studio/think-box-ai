@@ -16,8 +16,12 @@ const COMBO_WINDOW = 2; // seconds between scoring hits that keep a combo going
 const COMBO_STEP = 50; // extra points per hit once the combo reaches 3
 const BONUS_PER_HIT = 25; // paid out per bumper hit when the ball is lost, times the multiplier
 const SUPER_COMBO = 500; // flat bonus (times the multiplier) each time a combo reaches a multiple of 5
-const JACKPOT = 2000; // all five main bumpers hit in one ball
-const DECK_EXIT_Y = 230; // a ball on the upper deck that gets below this has dropped through the gap
+const DECK_EXIT_Y = 285; // a ball on the upper deck that gets below this has left it (it falls off the end of the shelf)
+const MAX_LOCKS = 2; // the ball lock can be used this many times per ball (without a limit the slingshots fed the ball straight back into it, for ever)
+const SLING_KICK = 450; // px/s a slingshot throws the ball away from its face (480 and up let some balls bounce between the slingshots for ever, 460 and down none do)
+const SLING_POINTS = 50; // flat, times the multiplier
+const DECK_HIT_BONUS = 250; // paid per deck-bumper hit when the ball leaves the deck, times the multiplier
+const JACKPOTS = { main: 2000, deck: 3000 };
 const CAPTURE_SPEED = 1500; // a trap holds a ball slower than this (a plunger shot arrives down the left wall at about 1000-1300)
 const MAX_BALLS = 3; // balls in play at once (your ball plus up to two free extras)
 const DECK_MAX = 20; // seconds: a ball still on the deck after this is let down anyway (it should never come to that)
@@ -44,10 +48,16 @@ function buildWalls() {
   return w;
 }
 export const WALLS = buildWalls();
-/** The upper deck: two rails that make a funnel with a gap in the middle. They only touch a ball that is on the deck (layer 1); the ball falls through the gap back to the main table. */
+/** Slingshots: an angled face above each flipper that kicks a ball hitting its inner side back into play. Behind the face is a channel down to the flipper, so the lower end is well clear of the guide (no gap that could pinch a ball). */
+export const SLINGS = [
+  { side: 'left', face: { x1: 88, y1: 598, x2: 132, y2: 660 } },
+  { side: 'right', face: { x1: 392, y1: 598, x2: 348, y2: 660 } },
+];
+/** The upper deck: two rails that make a funnel with a gap in the middle, and a gently sloping shelf under the gap for a longer ride. They only touch a ball that is on the deck (layer 1); the ball falls through the gap back to the main table. */
 export const DECK_WALLS = [
   { x1: 44, y1: 144, x2: 210, y2: 215, thick: 4 },
   { x1: 436, y1: 144, x2: 270, y2: 215, thick: 4 },
+  { x1: 22, y1: 232, x2: 318, y2: 268, thick: 4 }, // second tier: a ball falling through the gap lands here and rolls slowly to the right, off the end
 ];
 /** Ball traps: a slow ball that rolls over one is held for `hold` seconds and paid, then let go (one ball per trap at a time). 'kick' throws it back onto the table and shoots out free extra balls; 'deck' lifts it onto the upper deck. */
 export const SAUCERS = [
@@ -64,9 +74,10 @@ export function createGame() {
 
 function reset(g) {
   g.bumpers = [
-    { x: 170, y: 300, r: 26, bank: true }, { x: 310, y: 300, r: 26, bank: true }, { x: 240, y: 400, r: 26, bank: true }, // the original three
-    { x: 95, y: 330, r: 18, pts: 150, bank: true }, { x: 375, y: 430, r: 18, pts: 150, bank: true }, // small pop bumpers pay more
-    { x: 130, y: 118, r: 16, pts: 200, layer: 1 }, { x: 350, y: 118, r: 16, pts: 200, layer: 1 }, { x: 240, y: 160, r: 14, pts: 200, layer: 1 }, // upper deck
+    { x: 170, y: 300, r: 26, bank: 'main' }, { x: 310, y: 300, r: 26, bank: 'main' }, { x: 240, y: 400, r: 26, bank: 'main' }, // the original three
+    { x: 95, y: 330, r: 18, pts: 150, bank: 'main' }, { x: 375, y: 430, r: 18, pts: 150, bank: 'main' }, // small pop bumpers pay more
+    { x: 130, y: 118, r: 16, pts: 200, layer: 1, bank: 'deck' }, { x: 350, y: 118, r: 16, pts: 200, layer: 1, bank: 'deck' }, { x: 240, y: 160, r: 14, pts: 200, layer: 1, bank: 'deck' },
+    { x: 300, y: 226, r: 10, pts: 250, layer: 1, bank: 'deck' }, // upper deck: the last one sits above the shelf, high enough for a rolling ball to pass under
   ];
   g.saucers = SAUCERS.map((x) => ({ ...x, cool: 0 })); g.trap = null; g.extra = []; g.deckSide = 1; g.layerSince = 0;
   g.flippers = {
@@ -75,7 +86,7 @@ function reset(g) {
   };
   g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0, layer: 0 };
   g.events = []; g.score = 0; g.ballsLeft = 3; g.multiplier = 1; g.bumperHits = 0; g.charge = 0; g.time = 0; g.lastHit = -1;
-  g.acc = 0; g.combo = 0; g.lastScoreAt = -10; g.lastBall = null; g.newBest = false;
+  g.locksUsed = 0; g.saveUntil = 0; g.saveUsed = false; g.acc = 0; g.combo = 0; g.lastScoreAt = -10; g.lastBall = null; g.newBest = false;
 }
 
 export function startGame(g) { const best = g.best; reset(g); g.best = best; g.state = 'ready'; }
@@ -108,7 +119,7 @@ function collideSegment(ball, s, thick, bounce, wx = 0, wy = 0, ox = 0, oy = 0, 
   const rvx = ball.vx - wx, rvy = ball.vy - wy;
   const vn = rvx * nx + rvy * ny;
   if (vn < 0) { ball.vx -= (1 + bounce) * vn * nx; ball.vy -= (1 + bounce) * vn * ny; }
-  return { impact: Math.max(0, -vn) };
+  return { impact: Math.max(0, -vn), nx, ny };
 }
 
 function moveFlippers(g, input, h) {
@@ -147,8 +158,8 @@ function release(g) {
     b.vx = sa.vx; b.vy = sa.vy; // up and across the table
     const room = Math.max(0, MAX_BALLS - 1 - g.extra.length); const shots = sa.extras.slice(0, room);
     for (const sh of shots) g.extra.push({ x: sa.x, y: sa.y, vx: sh.vx, vy: sh.vy, layer: 0 });
-    if (shots.length) emit(g, { type: 'multiball', count: shots.length, x: sa.x, y: sa.y });
-  } else { b.layer = 1; b.layerSince = g.time; g.layerSince = g.time; g.deckSide = -g.deckSide; b.vx = 40 * g.deckSide; b.vy = 60; emit(g, { type: 'layer', layer: 1 }); } // the sideways nudge keeps it off the exact centre line
+    if (shots.length) { emit(g, { type: 'multiball', count: shots.length, x: sa.x, y: sa.y }); if (g.tuning.saveSeconds > 0) { g.saveUsed = false; g.saveUntil = Math.max(g.saveUntil, g.time + g.tuning.saveSeconds * 0.6); } } // a multiball earns a fresh (shorter) ball save
+  } else { b.layer = 1; b.layerSince = g.time; g.layerSince = g.time; b.deckHits = 0; for (const x of g.bumpers) if (x.bank === 'deck') x.lit = false; g.deckSide = -g.deckSide; b.vx = 40 * g.deckSide; b.vy = 60; emit(g, { type: 'layer', layer: 1 }); } // the sideways nudge keeps it off the exact centre line
   emit(g, { type: 'release', x: sa.x, y: sa.y, kind: sa.kind });
 }
 
@@ -167,7 +178,15 @@ function substep(g, b, h) {
       if (hit && hit.impact > HARD_HIT) emit(g, { type: 'wall', x: b.x, y: b.y, impact: hit.impact });
     }
     if (b.layer === 1) for (const w of DECK_WALLS) collideSegment(b, w, w.thick, g.tuning.wallBounce);
-    else for (const side of ['left', 'right']) {
+    else for (const sl of SLINGS) {
+      const hit = collideSegment(b, sl.face, 4, g.tuning.wallBounce);
+      const inner = sl.side === 'left' ? hit && hit.nx > 0 : hit && hit.nx < 0; // only the side facing the middle of the table kicks
+      if (hit && inner && hit.impact > 60 && g.time - (b.lastSling ?? -1) > 0.1) {
+        const vn = b.vx * hit.nx + b.vy * hit.ny; b.vx += (SLING_KICK - vn) * hit.nx; b.vy += (SLING_KICK - vn) * hit.ny; b.lastSling = g.time;
+        const pts = SLING_POINTS * g.multiplier; g.score += pts; g.slingHit = { side: sl.side, at: g.time }; emit(g, { type: 'sling', side: sl.side, x: (sl.face.x1 + sl.face.x2) / 2, y: (sl.face.y1 + sl.face.y2) / 2, pts });
+      }
+    }
+    if (b.layer === 0) for (const side of ['left', 'right']) {
       const f = g.flippers[side];
       const seg = { x1: f.px, y1: f.py, x2: f.px + FLIPPER_LEN * Math.cos(f.angle), y2: f.py + FLIPPER_LEN * Math.sin(f.angle) };
       const hit = collideSegment(b, seg, FLIPPER_THICK, g.tuning.flipperBounce, 0, 0, f.px, f.py, f.omega);
@@ -184,22 +203,29 @@ function substep(g, b, h) {
     if (b.vx * nx + b.vy * ny < kick) { const vn = b.vx * nx + b.vy * ny; b.vx += (kick - vn) * nx; b.vy += (kick - vn) * ny; }
     if (g.time - (b.lastHit ?? -1) > 0.03 || bu !== b.lastBumper) {
       scoreHit(g, bu.pts ?? BUMPER_POINTS, bu.x, bu.y, 'bumper');
+      if (bu.layer === 1) b.deckHits = (b.deckHits ?? 0) + 1;
       if (bu.bank) {
         bu.lit = true;
-        const bank = g.bumpers.filter((x) => x.bank);
-        if (bank.every((x) => x.lit)) { const pts = JACKPOT * g.multiplier; g.score += pts; emit(g, { type: 'jackpot', pts, multiplier: g.multiplier }); for (const x of bank) x.lit = false; }
+        const bank = g.bumpers.filter((x) => x.bank === bu.bank);
+        if (bank.every((x) => x.lit)) { const pts = JACKPOTS[bu.bank] * g.multiplier; g.score += pts; emit(g, { type: 'jackpot', pts, multiplier: g.multiplier, group: bu.bank }); for (const x of bank) x.lit = false; }
       }
     }
     b.lastHit = g.time; b.lastBumper = bu; g.lastHit = g.time; g.lastBumper = bu;
   }
   if (b.layer === 0) {
     for (const sa of g.saucers) {
-      if (g.trap || g.time < sa.cool || Math.hypot(b.x - sa.x, b.y - sa.y) >= sa.r || Math.hypot(b.vx, b.vy) >= CAPTURE_SPEED) continue;
-      g.trap = { s: sa, until: g.time + sa.hold, ball: b }; b.x = sa.x; b.y = sa.y; b.vx = 0; b.vy = 0;
+      if (g.trap || (sa.kind === 'kick' && g.locksUsed >= MAX_LOCKS) || g.time < sa.cool || Math.hypot(b.x - sa.x, b.y - sa.y) >= sa.r || Math.hypot(b.vx, b.vy) >= CAPTURE_SPEED) continue;
+      if (sa.kind === 'kick') g.locksUsed++;
+      g.trap = { s: sa, until: g.time + (sa.kind === 'kick' ? g.tuning.lockSeconds : sa.hold), ball: b }; b.x = sa.x; b.y = sa.y; b.vx = 0; b.vy = 0;
       scoreHit(g, sa.pts, sa.x, sa.y, 'trap', { kind: sa.kind });
       break;
     }
-  } else if (b.y > DECK_EXIT_Y || g.time - (b.layerSince ?? g.layerSince) > DECK_MAX) { b.layer = 0; emit(g, { type: 'layer', layer: 0 }); }
+  } else if (b.y > DECK_EXIT_Y || g.time - (b.layerSince ?? g.layerSince) > DECK_MAX) {
+    b.layer = 0; emit(g, { type: 'layer', layer: 0 });
+    const hits = b.deckHits ?? 0; b.deckHits = 0;
+    if (hits > 0) { const pts = DECK_HIT_BONUS * hits * g.multiplier; g.score += pts; emit(g, { type: 'deck-exit', pts, hits }); }
+    for (const x of g.bumpers) if (x.bank === 'deck') x.lit = false;
+  }
 }
 
 function drain(g) {
@@ -207,7 +233,7 @@ function drain(g) {
   const bonus = BONUS_PER_HIT * g.bumperHits * g.multiplier;
   if (bonus > 0) { g.score += bonus; emit(g, { type: 'bonus', pts: bonus, hits: g.bumperHits, multiplier: g.multiplier }); }
   g.lastBall = { number, bonus, hits: g.bumperHits };
-  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.combo = 0; g.charge = 0; g.trap = null; g.extra = []; g.acc = 0;
+  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.combo = 0; g.charge = 0; g.trap = null; g.extra = []; g.acc = 0; g.saveUntil = 0; g.saveUsed = false; g.locksUsed = 0;
   for (const x of g.bumpers) x.lit = false;
   g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0, layer: 0 };
   emit(g, { type: 'drain' });
@@ -218,7 +244,7 @@ export function step(g, input, rawDt) {
   const dt = Math.min(Math.max(rawDt, 0), MAX_DT);
   if (g.state === 'ready') {
     if (input.plunger) g.charge = Math.min(1, g.charge + dt / 0.8);
-    else if (g.charge > 0.02) { g.ball.vy = -(700 + 1000 * g.charge); g.ball.vx = 0; emit(g, { type: 'launch', power: g.charge }); g.charge = 0; g.state = 'playing'; }
+    else if (g.charge > 0.02) { g.ball.vy = -(700 + 1000 * g.charge); g.ball.vx = 0; emit(g, { type: 'launch', power: g.charge }); g.charge = 0; g.state = 'playing'; if (!g.saveUsed && g.tuning.saveSeconds > 0) g.saveUntil = g.time + g.tuning.saveSeconds; }
     else g.charge = 0;
     moveFlippers(g, input, dt || 1);
     return;
@@ -236,7 +262,10 @@ export function step(g, input, rawDt) {
     if (lost.length) { g.extra = g.extra.filter((x) => x.y <= DRAIN_Y); for (const x of lost) emit(g, { type: 'extra-lost', x: x.x }); }
     if (g.ball.y > DRAIN_Y) {
       if (g.extra.length) { g.ball = g.extra.shift(); emit(g, { type: 'extra-lost', x: g.ball.x }); } // an extra becomes your ball: no ball is lost while another is in play
-      else { drain(g); return; }
+      else if (g.saveUntil >= g.time && g.tuning.saveSeconds > 0) { // ball save: the last ball is returned to the lane, nothing is lost
+        g.saveUsed = true; g.saveUntil = 0; g.charge = 0; g.trap = null; g.state = 'ready'; g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0, layer: 0 };
+        emit(g, { type: 'save' }); return;
+      } else { drain(g); return; }
     }
   }
 }
