@@ -1,12 +1,13 @@
 // The page: wires keyboard, touch and the sound button to the game, runs the clock, keeps the high scores. Rules are in game.js, drawing in render.js.
-import { createGame, step, startGame, togglePause, addHighScore, cleanInitials, WIDTH, HEIGHT } from './game.js';
+import { createGame, step, startGame, togglePause, addHighScore, cleanInitials, useBomb, setDifficulty, DIFFICULTIES, WIDTH, HEIGHT } from './game.js';
 import { createInput, GAME_KEYS } from './input.js';
 import { draw } from './render.js';
 import { createSound } from './sound.js';
 import { createEffects } from './effects.js';
 import { parseScores } from './scores.js';
 
-const SCORES_KEY = 'starfall-scores';
+const DIFFICULTY_KEY = 'starfall-difficulty';
+const scoresKey = (d) => `starfall-scores-${d}`; // a table for each difficulty (v0.2's single table is read as Normal)
 const MUTE_KEY = 'starfall-muted';
 const RESTART_DELAY = 700;
 const canvas = document.getElementById('game');
@@ -19,16 +20,33 @@ const fx = createEffects({ reducedMotion: matchMedia('(prefers-reduced-motion: r
 const initialsBox = document.getElementById('initials');
 const muteButton = document.getElementById('mute');
 
-let scores = []; try { scores = parseScores(localStorage.getItem(SCORES_KEY)); sound.setMuted(localStorage.getItem(MUTE_KEY) === '1'); } catch { /* private window: nothing is remembered */ }
+function loadScores(d) { try { return parseScores(localStorage.getItem(scoresKey(d)) ?? (d === 'normal' ? localStorage.getItem('starfall-scores') : null)); } catch { return []; } }
+let difficulty = 'normal'; try { const saved = localStorage.getItem(DIFFICULTY_KEY); if (saved && Object.prototype.hasOwnProperty.call(DIFFICULTIES, saved)) difficulty = saved; sound.setMuted(localStorage.getItem(MUTE_KEY) === '1'); } catch { /* private window: nothing is remembered */ }
+setDifficulty(game, difficulty);
+let scores = loadScores(difficulty);
 game.best = scores[0]?.score ?? 0;
-const view = { scores, entering: false, rank: null, restartReady: true };
+const view = { scores, entering: false, rank: null, restartReady: true, difficulty };
 let overAt = 0; let touchX = null;
 
-function saveScores() { try { localStorage.setItem(SCORES_KEY, JSON.stringify(scores)); } catch { /* not remembered */ } }
+function saveScores() { try { localStorage.setItem(scoresKey(difficulty), JSON.stringify(scores)); } catch { /* not remembered */ } }
 function showMute() { muteButton.textContent = sound.muted ? 'Sound off' : 'Sound on'; muteButton.setAttribute('aria-pressed', String(sound.muted)); }
 function toggleMute() { sound.setMuted(!sound.muted); showMute(); try { localStorage.setItem(MUTE_KEY, sound.muted ? '1' : '0'); } catch { /* not remembered */ } }
 showMute();
 muteButton.addEventListener('click', () => { sound.unlock(); toggleMute(); muteButton.blur(); });
+
+// Easy / Normal / Hard: a change is only taken between games, and each difficulty keeps its own high scores
+const difficultyHost = document.getElementById('difficulty'); const difficultyButtons = {};
+function showDifficulty() { for (const [name, b] of Object.entries(difficultyButtons)) b.setAttribute('aria-pressed', String(name === difficulty)); }
+for (const name of Object.keys(DIFFICULTIES)) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'difficulty-button'; b.textContent = name[0].toUpperCase() + name.slice(1);
+  b.addEventListener('click', () => {
+    if (game.state === 'playing' || game.state === 'paused' || view.entering) return;
+    difficulty = name; setDifficulty(game, name); scores = loadScores(name); view.scores = scores; view.difficulty = name; game.best = scores[0]?.score ?? 0; view.rank = null; showDifficulty();
+    try { localStorage.setItem(DIFFICULTY_KEY, name); } catch { /* not remembered */ } b.blur();
+  });
+  difficultyButtons[name] = b; difficultyHost.appendChild(b);
+}
+showDifficulty();
 
 function startOrRestart() {
   if (view.entering) return;
@@ -51,6 +69,7 @@ addEventListener('keydown', (e) => {
   if (GAME_KEYS.has(e.code)) e.preventDefault();
   if (!e.repeat) {
     if (e.code === 'KeyM') { toggleMute(); return; }
+    if (e.code === 'KeyB') { useBomb(game); return; }
     if (e.code === 'Enter') startOrRestart();
     else if (e.code === 'KeyP') togglePause(game);
     else if (e.code === 'Space' && (game.state === 'title' || game.state === 'over')) { startOrRestart(); return; }
@@ -65,6 +84,7 @@ canvas.addEventListener('pointerdown', (e) => { sound.unlock(); if (game.state !
 canvas.addEventListener('pointermove', (e) => { if (touchX !== null) touchX = toGame(e); });
 for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, () => { touchX = null; });
 
+document.querySelector('[data-bomb]')?.addEventListener('pointerdown', (e) => { e.preventDefault(); sound.unlock(); useBomb(game); });
 for (const btn of document.querySelectorAll('[data-touch]')) {
   const name = btn.dataset.touch;
   btn.addEventListener('pointerdown', (e) => { e.preventDefault(); sound.unlock(); startOrRestart(); input.touch(name, true); });
