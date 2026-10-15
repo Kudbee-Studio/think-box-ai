@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-15T16:03:27.355Z",
+  "head": "6b1eca10",
+  "base": "gh/main",
+  "base_sha": "5e3a1baf",
+  "branch": "feat/pr426-p3.86-pinball-arcade-feel",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1874
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 2080
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1504
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 9227
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 997
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1661 passed, 0 failed; lines 92.91% (floor 90%)",
+      "ms": 88980
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 797654
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 408375
+    }
+  ],
+  "verdict": "PASS"
+}
