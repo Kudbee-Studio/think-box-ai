@@ -3,7 +3,8 @@ import { createGame, step, startGame, togglePause, WALLS, WIDTH, HEIGHT } from '
 import { createInput, GAME_KEYS } from './input.js';
 import { draw } from './render.js';
 import { createSound } from './sound.js';
-import { createEffects } from './effects.js';
+import { createEffects, easeScore } from './effects.js';
+import { createRestartGuard } from './flow.js';
 import { buildTuningPanel, loadTuning } from './tuning-ui.js';
 
 const BEST_KEY = 'pinball-best';
@@ -18,17 +19,27 @@ const sound = createSound(window.AudioContext || window.webkitAudioContext);
 const fx = createEffects({ reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches });
 
 try { game.best = Number(localStorage.getItem(BEST_KEY)) || 0; } catch { /* private window: the best score just is not remembered */ }
+const restartGuard = createRestartGuard(700);
 let savedBest = game.best;
 try { loadTuning(game, localStorage.getItem(TUNING_KEY)); sound.setMuted(localStorage.getItem(MUTE_KEY) === '1'); } catch { /* private window: settings are not remembered */ }
 const tuningHost = document.getElementById('tuning');
 tuningHost.appendChild(buildTuningPanel(document, game, (t) => { try { localStorage.setItem(TUNING_KEY, JSON.stringify(t)); } catch { /* not remembered */ } }));
 
-function startOrRestart() { if (game.state === 'title' || game.state === 'over') { input.clear(); startGame(game); } }
+function startOrRestart() {
+  if (game.state === 'over' && !restartGuard.allowed(performance.now())) return;
+  if (game.state === 'title' || game.state === 'over') { input.clear(); startGame(game); fx.shown = 0; fx.banner = null; }
+}
+
+const muteButton = document.getElementById('mute');
+function showMute() { muteButton.textContent = sound.muted ? 'Sound off' : 'Sound on'; muteButton.setAttribute('aria-pressed', String(sound.muted)); }
+function toggleMute() { sound.setMuted(!sound.muted); showMute(); try { localStorage.setItem(MUTE_KEY, sound.muted ? '1' : '0'); } catch { /* not remembered */ } }
+showMute();
+muteButton.addEventListener('click', () => { sound.unlock(); toggleMute(); muteButton.blur(); });
 
 addEventListener('keydown', (e) => {
   sound.unlock();
   if (GAME_KEYS.has(e.code)) e.preventDefault();
-  if (!e.repeat && e.code === 'KeyS') { sound.setMuted(!sound.muted); try { localStorage.setItem(MUTE_KEY, sound.muted ? '1' : '0'); } catch { /* not remembered */ } return; }
+  if (!e.repeat && e.code === 'KeyS') { toggleMute(); return; }
   if (!e.repeat && e.code === 'KeyT') { tuningHost.hidden = !tuningHost.hidden; return; }
   if (!e.repeat) {
     if (e.code === 'Enter') startOrRestart();
@@ -52,10 +63,12 @@ function frame(now) {
   const dt = (now - last) / 1000;
   step(game, input.read(), dt);
   last = now;
-  for (const e of game.events) { sound.play(e); fx.handle(e); if (e.type === 'drain' || e.type === 'launch') fx.clearTrail(); }
+  for (const e of game.events) { sound.play(e); fx.handle(e); if (e.type === 'over') restartGuard.arm(performance.now()); if (e.type === 'drain' || e.type === 'launch') fx.clearTrail(); }
   game.events.length = 0;
   if (game.state === 'playing') fx.trail(game.ball.x, game.ball.y);
   fx.update(Math.min(dt, 0.05));
+  fx.shown = easeScore(fx.shown, game.score, Math.min(dt, 0.05));
+  fx.restartReady = restartGuard.allowed(now);
   if (game.best > savedBest) { savedBest = game.best; try { localStorage.setItem(BEST_KEY, String(savedBest)); } catch { /* not remembered */ } }
   draw(ctx, game, WALLS, fx);
   requestAnimationFrame(frame);
