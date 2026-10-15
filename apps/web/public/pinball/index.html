@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Pinball</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <canvas id="game" aria-label="Pinball game"></canvas>
+    <div id="tuning" hidden></div>
+    <div class="touch" aria-hidden="true">
+      <button data-touch="left" tabindex="-1">Left</button>
+      <button data-touch="plunger" tabindex="-1">Launch</button>
+      <button data-touch="right" tabindex="-1">Right</button>
+    </div>
+  </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
