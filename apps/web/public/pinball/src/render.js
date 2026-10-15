@@ -1,6 +1,6 @@
 // Draws a game onto a canvas. All the rules live in game.js; this only reads the state. Effects that float over the table (popups, call-outs) are drawn BEFORE the ball,
 // and the ball-lost banner only shows while the next ball waits in the lane, so the ball in play is never covered.
-import { WIDTH, HEIGHT, BALL_R, DECK_WALLS, allBalls, flipperTip } from './game.js';
+import { WIDTH, HEIGHT, BALL_R, DECK_WALLS, SLINGS, allBalls, flipperTip } from './game.js';
 
 function line(ctx, x1, y1, x2, y2, w, color) { ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
 function text(ctx, s, x, y, size = 16, color = '#e6edf3', align = 'center') { ctx.fillStyle = color; ctx.font = `${size}px system-ui, sans-serif`; ctx.textAlign = align; ctx.fillText(s, x, y); }
@@ -10,6 +10,7 @@ function hud(ctx, g, fx) {
   const shown = fx ? fx.shown : g.score;
   text(ctx, fmt(shown), 28, 34, 26, '#e6edf3', 'left');
   if (g.combo >= 3) text(ctx, `Combo x${g.combo}`, 28, 54, 13, '#d29922', 'left');
+  if (g.state === 'playing' && g.saveUntil >= g.time && g.saveUntil > 0) text(ctx, `SAVE ${Math.ceil(g.saveUntil - g.time)}s`, 28, 94, 13, '#3fb950', 'left'); // the ball save is open: a lost ball comes back
   if (g.extra.length) text(ctx, `MULTIBALL x${1 + g.extra.length}`, 28, 74, 13, '#ffd37a', 'left');
   const flash = fx ? fx.multiplierFlash : 0;
   if (g.multiplier > 1) text(ctx, `x${g.multiplier}`, WIDTH / 2, 34, 22 + flash * 20, flash > 0 ? '#ffd37a' : '#ffa657');
@@ -47,13 +48,18 @@ export function draw(ctx, g, walls, fx) {
       text(ctx, `${(left * sa.hold).toFixed(1)}s`, sa.x + sa.r + 10, sa.y + 4, 12, '#ffd37a', 'left'); // how long until it lets go
     }
   }
+  for (const sl of SLINGS) { // slingshots: green faces that flash white when they kick
+    const hot = g.slingHit && g.slingHit.side === sl.side && g.time - g.slingHit.at < 0.12;
+    line(ctx, sl.face.x1, sl.face.y1, sl.face.x2, sl.face.y2, 10, hot ? '#ffffff' : '#3fb950');
+  }
   for (const side of ['left', 'right']) { const f = g.flippers[side]; const t = flipperTip(g, side); line(ctx, f.px, f.py, t.x, t.y, 12, '#f0e68c'); }
-  ctx.globalAlpha = deckBright ? 1 : 0.4; // the upper deck: bright while a ball is on it, a ghost of a ramp otherwise
+  ctx.globalAlpha = deckBright ? 1 : 0.55; // the upper deck: bright while a ball is on it, a ghost of a ramp otherwise
   for (const w of DECK_WALLS) line(ctx, w.x1, w.y1, w.x2, w.y2, w.thick * 2, '#a371f7');
   for (const b of g.bumpers) {
     if (b.layer !== 1) continue;
     const hot = g.time - g.lastHit < 0.12 && g.lastBumper === b;
-    ctx.fillStyle = hot ? '#d2a8ff' : '#6e40c9'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill(); ctx.strokeStyle = '#d2a8ff'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = hot ? '#d2a8ff' : b.lit ? '#a371f7' : '#6e40c9'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill(); ctx.strokeStyle = b.lit ? '#ffffff' : '#d2a8ff'; ctx.lineWidth = b.lit ? 4 : 3; ctx.stroke();
+    if (b.pts && deckBright) text(ctx, String(b.pts), b.x, b.y + 4, 10, 'rgba(255,255,255,0.85)');
   }
   ctx.globalAlpha = 1;
   if (g.state === 'ready' && g.charge > 0) { ctx.fillStyle = '#3fb950'; const h = 120 * g.charge; ctx.fillRect(466, 780 - h, 8, h); }

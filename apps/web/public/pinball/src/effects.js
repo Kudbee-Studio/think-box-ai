@@ -15,7 +15,10 @@ export function createEffects({ reducedMotion = false } = {}) {
     handle(e) {
       if (e.type === 'trap' && e.kind === 'kick') fx.callout = { text: 'BALL LOCKED', life: 1.2 };
       if (e.type === 'multiball') { fx.callout = { text: `MULTIBALL x${e.count + 1}`, life: 1.6 }; fx.flashes.push({ x: e.x, y: e.y, life: 0.25 }); }
-      if (e.type === 'jackpot') fx.callout = { text: `JACKPOT +${e.pts}`, life: 1.6 };
+      if (e.type === 'sling') { fx.flashes.push({ x: e.x, y: e.y, life: 0.12 }); if (fx.flashes.length > 12) fx.flashes.shift(); }
+      if (e.type === 'save') fx.callout = { text: 'BALL SAVED', life: 1.4 };
+      if (e.type === 'jackpot') fx.callout = { text: `${e.group === 'deck' ? 'DECK ' : ''}JACKPOT +${e.pts}`, life: 1.6 };
+      else if (e.type === 'deck-exit') fx.callout = { text: `DECK BONUS +${e.pts}`, life: 1.3 };
       else if (e.type === 'supercombo') fx.callout = { text: `SUPER COMBO +${e.pts}`, life: 1.3 };
       else if (e.type === 'layer' && e.layer === 1) fx.callout = { text: 'UPPER DECK', life: 1 };
       else if (e.type === 'combo') fx.callout = { text: `COMBO x${e.combo}`, life: 1 };

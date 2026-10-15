@@ -73,3 +73,14 @@ test('the served copy has the upper deck, the ball traps and multiball (the stan
   assert.match(src, /const CAPTURE_SPEED = 1500/, 'a launched ball arriving fast is still caught');
   assert.match(src, /g\.acc \+= dt;/, 'the physics advances in fixed steps, so it does not depend on the frame rate');
 });
+
+test('the served copy is v0.7: the deck shelf, slingshots, ball save, presets and the lock limit are all there (and the page has the preset buttons)', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /second tier: a ball falling through the gap lands here/, 'the deck shelf');
+  assert.match(src, /export const SLINGS/, 'the slingshots');
+  assert.match(src, /const SLING_KICK = 450/, 'a slingshot kick that cannot bounce a ball between the slingshots for ever');
+  assert.match(src, /const MAX_LOCKS = 2/, 'the lock can be used twice per ball');
+  assert.match(src, /type: 'save'/, 'the ball save');
+  assert.match(fs.readFileSync(path.join(game, 'src', 'tuning.js'), 'utf8'), /export const PRESETS/, 'the Easy / Normal / Hard presets');
+  assert.ok(html.includes('id="presets"'), 'the preset buttons have a place on the page');
+});

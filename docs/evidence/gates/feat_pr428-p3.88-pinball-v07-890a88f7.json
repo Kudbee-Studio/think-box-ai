@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-15T18:26:56.694Z",
+  "head": "890a88f7",
+  "base": "gh/main",
+  "base_sha": "1e9c138b",
+  "branch": "feat/pr428-p3.88-pinball-v07",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1867
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1756
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1814
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 12463
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 1135
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1663 passed, 0 failed; lines 92.95% (floor 90%)",
+      "ms": 99034
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 806353
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 389261
+    }
+  ],
+  "verdict": "PASS"
+}

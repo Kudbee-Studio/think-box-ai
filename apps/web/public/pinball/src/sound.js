@@ -17,6 +17,9 @@ const SOUNDS = {
   supercombo: { type: 'sine', from: 900, to: 1400, dur: 0.3, vol: 0.2, gap: 300 },
   multiball: { type: 'sawtooth', from: 500, to: 1500, dur: 0.5, vol: 0.22, gap: 400 },
   'extra-lost': { type: 'triangle', from: 260, to: 120, dur: 0.15, vol: 0.12, gap: 100 },
+  'deck-exit': { type: 'triangle', from: 560, to: 880, dur: 0.3, vol: 0.2, gap: 300 },
+  save: { type: 'sine', from: 380, to: 760, dur: 0.35, vol: 0.22, gap: 400 },
+  sling: { type: 'square', from: 200, to: 420, dur: 0.06, vol: 0.12, gap: 60 },
   over: { type: 'sawtooth', from: 240, to: 40, dur: 1.0, vol: 0.28, gap: 500 },
 };
 
