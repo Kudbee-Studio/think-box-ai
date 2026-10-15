@@ -1,7 +1,13 @@
 :root { color-scheme: dark; }
 html, body { margin: 0; height: 100%; background: #010409; color: #e6edf3; font-family: system-ui, sans-serif; }
 main { display: grid; place-items: center; min-height: 100%; gap: 12px; padding: 8px; box-sizing: border-box; }
-canvas { width: min(100vw - 16px, (100vh - 90px) * 0.75); aspect-ratio: 3 / 4; max-width: 480px; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; touch-action: none; }
+canvas { aspect-ratio: 3 / 4; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; touch-action: none; }
 .touch { display: none; gap: 12px; }
 .touch button { font-size: 20px; padding: 16px 24px; border-radius: 10px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; touch-action: none; user-select: none; }
 @media (pointer: coarse) { .touch { display: flex; } }
+.stage { position: relative; width: min(100vw - 16px, (100vh - 120px) * 0.75); max-width: 480px; }
+.stage canvas { width: 100%; display: block; }
+#initials { position: absolute; left: 50%; top: 52%; transform: translateX(-50%); width: 5.5em; text-align: center; font-size: 28px; letter-spacing: .2em; text-transform: uppercase; background: #0d1117; color: #ffd37a; border: 2px solid #ffd37a; border-radius: 8px; padding: 6px; }
+.bar { display: flex; gap: 8px; }
+#mute { padding: 6px 12px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font-size: 13px; }
+#mute[aria-pressed="true"] { color: #8b949e; }

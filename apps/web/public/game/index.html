@@ -8,7 +8,11 @@
 </head>
 <body>
   <main>
-    <canvas id="game" aria-label="Starfall game"></canvas>
+    <div class="stage">
+      <canvas id="game" aria-label="Starfall game" tabindex="-1"></canvas>
+      <input id="initials" maxlength="3" autocomplete="off" spellcheck="false" aria-label="Your initials for the high-score table" placeholder="AAA" hidden>
+    </div>
+    <div class="bar"><button id="mute" type="button" aria-pressed="false">Sound on</button></div>
     <div class="touch" aria-hidden="true">
       <button data-touch="left" tabindex="-1">◀</button>
       <button data-touch="fire" tabindex="-1">Fire</button>

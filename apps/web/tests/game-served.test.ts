@@ -24,7 +24,7 @@ test('the page uses relative paths and every file it names, and every module tho
     for (const m of fs.readFileSync(file, 'utf8').matchAll(/from '(\.[^']+)'/g)) queue.push(path.join(path.dirname(file), m[1]!));
   }
   for (const r of refs) assert.ok(fs.existsSync(path.join(game, r)), r);
-  assert.ok(seen.size >= 4, 'found the game modules');
+  assert.ok(seen.size >= 7, 'found the game modules');
 });
 
 test('no inline executable script and no inline handler, so the dashboard CSP cannot block the game', () => {
@@ -47,7 +47,15 @@ test('the running dashboard serves the game and its scripts with the security he
   assert.equal(page.status, 200); assert.match(page.headers.get('content-type') ?? '', /text\/html/);
   assert.match(page.headers.get('content-security-policy') ?? '', /script-src 'self'/);
   assert.match(await page.text(), /<canvas id="game"/);
-  for (const f of ['style.css', 'src/main.js', 'src/game.js', 'src/input.js', 'src/render.js']) assert.equal((await fetch(`${base}/game/${f}`)).status, 200, f);
+  for (const f of ['style.css', 'src/main.js', 'src/game.js', 'src/input.js', 'src/render.js', 'src/sound.js', 'src/effects.js', 'src/scores.js']) assert.equal((await fetch(`${base}/game/${f}`)).status, 200, f);
   const dash = await (await fetch(`${base}/`)).text();
   assert.match(dash, /<a id="game-link"[^>]*href="\/game\/"/);
+});
+
+test('the served copy is Starfall v0.2: waves and bosses, five enemy types, power-ups, fixed-step physics, touch, the sound button and the initials box', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /export const ENEMY_TYPES/, 'five enemy types'); assert.match(src, /export function composeWave/, 'waves'); assert.match(src, /const BOSS_EVERY = 5/, 'a boss every fifth wave');
+  assert.match(src, /g\.acc \+= /, 'fixed-step physics, independent of the frame rate'); assert.match(src, /targetX/, 'touch: the ship follows a finger');
+  assert.match(src, /export function addHighScore/, 'high scores');
+  assert.ok(html.includes('id="mute"'), 'a sound button'); assert.ok(html.includes('id="initials"'), 'the initials box');
 });
