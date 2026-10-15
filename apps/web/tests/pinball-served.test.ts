@@ -69,4 +69,7 @@ test('the served copy has the upper deck, the ball traps and multiball (the stan
   assert.match(src, /export function allBalls/, 'several balls are tracked');
   assert.match(src, /kind: 'kick'[^\n]*hold: 3,/, 'the side trap locks for three seconds');
   assert.match(src, /const DRAIN_Y = /, 'the ball-sticking fix is still there');
+  assert.match(src, /funnel: a ball rolling down the left wall/, 'the funnel that guides balls into the lock');
+  assert.match(src, /const CAPTURE_SPEED = 1500/, 'a launched ball arriving fast is still caught');
+  assert.match(src, /g\.acc \+= dt;/, 'the physics advances in fixed steps, so it does not depend on the frame rate');
 });

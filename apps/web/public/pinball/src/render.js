@@ -41,6 +41,7 @@ export function draw(ctx, g, walls, fx) {
   for (const sa of g.saucers) { // ball traps
     ctx.fillStyle = '#010409'; ctx.beginPath(); ctx.arc(sa.x, sa.y, sa.r, 0, 6.283); ctx.fill();
     ctx.strokeStyle = sa.kind === 'deck' ? '#a371f7' : '#3fb950'; ctx.lineWidth = 3; ctx.stroke();
+    if (!(g.trap && g.trap.s === sa)) text(ctx, sa.kind === 'deck' ? 'DECK' : 'LOCK', sa.x, sa.y + 4, 11, sa.kind === 'deck' ? '#a371f7' : '#3fb950'); // so a player can see what it is and aim at it
     if (g.trap && g.trap.s === sa) {
       const left = Math.max(0, (g.trap.until - g.time) / sa.hold); ctx.strokeStyle = '#ffd37a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sa.x, sa.y, sa.r + 5, -1.5708, -1.5708 + 6.283 * left); ctx.stroke();
       text(ctx, `${(left * sa.hold).toFixed(1)}s`, sa.x + sa.r + 10, sa.y + 4, 12, '#ffd37a', 'left'); // how long until it lets go
@@ -54,7 +55,6 @@ export function draw(ctx, g, walls, fx) {
     const hot = g.time - g.lastHit < 0.12 && g.lastBumper === b;
     ctx.fillStyle = hot ? '#d2a8ff' : '#6e40c9'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.283); ctx.fill(); ctx.strokeStyle = '#d2a8ff'; ctx.lineWidth = 3; ctx.stroke();
   }
-  if (!deckBright) text(ctx, 'upper deck', WIDTH / 2, 74, 10, 'rgba(163,113,247,0.6)');
   ctx.globalAlpha = 1;
   if (g.state === 'ready' && g.charge > 0) { ctx.fillStyle = '#3fb950'; const h = 120 * g.charge; ctx.fillRect(466, 780 - h, 8, h); }
   if (fx) {
@@ -77,7 +77,7 @@ export function draw(ctx, g, walls, fx) {
     text(ctx, 'PINBALL', WIDTH / 2, 320, 48, '#58a6ff');
     text(ctx, 'Z / ← left flipper   M / → right flipper', WIDTH / 2, 370, 14, '#8b949e');
     text(ctx, 'Hold Space to pull the plunger, let go to launch', WIDTH / 2, 392, 14, '#8b949e');
-    text(ctx, 'Combos, a 5-bumper jackpot, ball traps and an upper deck', WIDTH / 2, 414, 11, '#8b949e');
+    text(ctx, 'Roll into the green LOCK for multiball', WIDTH / 2, 414, 11, '#8b949e');
     text(ctx, 'Press Enter or tap to start', WIDTH / 2, 456, 20);
     text(ctx, 'S sound on/off   T change how it feels', WIDTH / 2, 480, 12, '#8b949e');
     if (g.best) text(ctx, `Best ${fmt(g.best)}`, WIDTH / 2, 506, 16, '#d29922');
