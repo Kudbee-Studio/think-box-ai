@@ -3863,3 +3863,6 @@ A second browser arcade game (separate project `~/projects/pinball` v0.2: tested
 
 ### P3.86: Pinball arcade feel, v0.3 (PR #426)
 `apps/web/public/pinball/` is refreshed from `~/projects/pinball`: the ball-sticking fix (v0.2.1), combo scoring and a drain bonus, a Ball lost banner, a clearer game over (new best, guarded restart), more effects and sound, and a visible Sound button. Physics constants and geometry are unchanged. The standalone project's original 52 tests pass unmodified against the new source (66 in all). Checked in Chromium through the dashboard. Not play-tested or heard by a person; not tried on a phone. Evidence: `docs/evidence/p3.86-pinball-arcade-feel/RESULTS.md`.
+
+### P3.87: Pinball v0.5 in the dashboard (PR #427)
+`apps/web/public/pinball/` is refreshed from `~/projects/pinball` (v0.5): two more bumpers, a bumper-bank jackpot, super combos, an upper deck (second layer) reached through a trap, and a side ball lock (3 s) that shoots out up to two free extra balls (multiball, 3 balls at most). Physics constants and the sticking-fix geometry are unchanged; the standalone suite has 98 tests (the v0.3 physics tests pass untouched). Checked in Chromium through the dashboard. Not play-tested beyond the sounds; no phone. Evidence: `docs/evidence/p3.87-pinball-multiball/RESULTS.md`.

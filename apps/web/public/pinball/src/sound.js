@@ -10,6 +10,13 @@ const SOUNDS = {
   bonus: { type: 'triangle', from: 520, to: 780, dur: 0.3, vol: 0.2, gap: 200 },
   combo: { type: 'sine', from: 700, to: 1000, dur: 0.12, vol: 0.18, gap: 60 },
   multiplier: { type: 'square', from: 1040, to: 1560, dur: 0.25, vol: 0.14, gap: 200 },
+  trap: { type: 'sine', from: 140, to: 90, dur: 0.2, vol: 0.28, gap: 200 },
+  release: { type: 'square', from: 300, to: 620, dur: 0.15, vol: 0.2, gap: 200 },
+  layer: { type: 'triangle', from: 400, to: 1200, dur: 0.4, vol: 0.2, gap: 300 },
+  jackpot: { type: 'sawtooth', from: 600, to: 1800, dur: 0.7, vol: 0.25, gap: 500 },
+  supercombo: { type: 'sine', from: 900, to: 1400, dur: 0.3, vol: 0.2, gap: 300 },
+  multiball: { type: 'sawtooth', from: 500, to: 1500, dur: 0.5, vol: 0.22, gap: 400 },
+  'extra-lost': { type: 'triangle', from: 260, to: 120, dur: 0.15, vol: 0.12, gap: 100 },
   over: { type: 'sawtooth', from: 240, to: 40, dur: 1.0, vol: 0.28, gap: 500 },
 };
 

@@ -60,3 +60,13 @@ test('the served copy carries the ball-sticking fix and the arcade scoring, and 
   assert.match(src, /BONUS_PER_HIT/, 'the drain bonus is there');
   assert.ok(html.includes('id="mute"'), 'the visible sound button is there');
 });
+
+test('the served copy has the upper deck, the ball traps and multiball (the standalone project at v0.5, not an older copy)', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /export const DECK_WALLS/, 'the upper deck');
+  assert.match(src, /export const SAUCERS/, 'the ball traps');
+  assert.match(src, /const MAX_BALLS = 3/, 'at most three balls at once');
+  assert.match(src, /export function allBalls/, 'several balls are tracked');
+  assert.match(src, /kind: 'kick'[^\n]*hold: 3,/, 'the side trap locks for three seconds');
+  assert.match(src, /const DRAIN_Y = /, 'the ball-sticking fix is still there');
+});
