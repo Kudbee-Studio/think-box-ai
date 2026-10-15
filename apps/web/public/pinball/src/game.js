@@ -15,6 +15,12 @@ const BUMPER_POINTS = 100;
 const COMBO_WINDOW = 2; // seconds between scoring hits that keep a combo going
 const COMBO_STEP = 50; // extra points per hit once the combo reaches 3
 const BONUS_PER_HIT = 25; // paid out per bumper hit when the ball is lost, times the multiplier
+const SUPER_COMBO = 500; // flat bonus (times the multiplier) each time a combo reaches a multiple of 5
+const JACKPOT = 2000; // all five main bumpers hit in one ball
+const DECK_EXIT_Y = 230; // a ball on the upper deck that gets below this has dropped through the gap
+const CAPTURE_SPEED = 1500; // a trap holds a ball slower than this (a plunger shot arrives down the left wall at about 1000-1300)
+const MAX_BALLS = 3; // balls in play at once (your ball plus up to two free extras)
+const DECK_MAX = 20; // seconds: a ball still on the deck after this is let down anyway (it should never come to that)
 const LANE_X = 445;
 const LANE_Y = 782;
 const DRAIN_Y = 795; // below the flippers the ball is lost (the launch lane floor holds a waiting ball at 782)
@@ -27,6 +33,7 @@ function buildWalls() {
     const a0 = Math.PI - (i * Math.PI) / N, a1 = Math.PI - ((i + 1) * Math.PI) / N;
     w.push({ x1: cx + R * Math.cos(a0), y1: cy - R * Math.sin(a0), x2: cx + R * Math.cos(a1), y2: cy - R * Math.sin(a1) });
   }
+  w.push({ x1: 20, y1: 415, x2: 46, y2: 478, thick: 3 });  // funnel: a ball rolling down the left wall is guided into the ball lock
   w.push({ x1: 20, y1: 260, x2: 20, y2: 800 });     // left wall (down past the flippers, like the lane wall on the right, so a ball under the flippers cannot leave the table sideways)
   w.push({ x1: 460, y1: 260, x2: 460, y2: 790 });   // right wall (outside of the launch lane)
   w.push({ x1: 430, y1: 330, x2: 430, y2: 790 });   // inside of the launch lane
@@ -37,6 +44,16 @@ function buildWalls() {
   return w;
 }
 export const WALLS = buildWalls();
+/** The upper deck: two rails that make a funnel with a gap in the middle. They only touch a ball that is on the deck (layer 1); the ball falls through the gap back to the main table. */
+export const DECK_WALLS = [
+  { x1: 44, y1: 144, x2: 210, y2: 215, thick: 4 },
+  { x1: 436, y1: 144, x2: 270, y2: 215, thick: 4 },
+];
+/** Ball traps: a slow ball that rolls over one is held for `hold` seconds and paid, then let go (one ball per trap at a time). 'kick' throws it back onto the table and shoots out free extra balls; 'deck' lifts it onto the upper deck. */
+export const SAUCERS = [
+  { x: 72, y: 490, r: 24, kind: 'kick', pts: 500, hold: 3, vx: 300, vy: -640, extras: [{ vx: 180, vy: -720 }, { vx: 420, vy: -560 }] }, // beside the left wall, level with the left pop bumper: locks the ball for 3 s, then shoots it out with up to two free extra balls fanned at different angles
+  { x: 240, y: 92, r: 13, kind: 'deck', pts: 1000, hold: 1.8 },
+];
 const deg = (d) => (d * Math.PI) / 180;
 
 export function createGame() {
@@ -46,14 +63,19 @@ export function createGame() {
 }
 
 function reset(g) {
-  g.bumpers = [{ x: 170, y: 300, r: 26 }, { x: 310, y: 300, r: 26 }, { x: 240, y: 400, r: 26 }];
+  g.bumpers = [
+    { x: 170, y: 300, r: 26, bank: true }, { x: 310, y: 300, r: 26, bank: true }, { x: 240, y: 400, r: 26, bank: true }, // the original three
+    { x: 95, y: 330, r: 18, pts: 150, bank: true }, { x: 375, y: 430, r: 18, pts: 150, bank: true }, // small pop bumpers pay more
+    { x: 130, y: 118, r: 16, pts: 200, layer: 1 }, { x: 350, y: 118, r: 16, pts: 200, layer: 1 }, { x: 240, y: 160, r: 14, pts: 200, layer: 1 }, // upper deck
+  ];
+  g.saucers = SAUCERS.map((x) => ({ ...x, cool: 0 })); g.trap = null; g.extra = []; g.deckSide = 1; g.layerSince = 0;
   g.flippers = {
     left: { px: 160, py: 730, rest: deg(26), up: deg(-34), angle: deg(26), omega: 0 },
     right: { px: 320, py: 730, rest: deg(154), up: deg(214), angle: deg(154), omega: 0 },
   };
-  g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0 };
+  g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0, layer: 0 };
   g.events = []; g.score = 0; g.ballsLeft = 3; g.multiplier = 1; g.bumperHits = 0; g.charge = 0; g.time = 0; g.lastHit = -1;
-  g.combo = 0; g.lastScoreAt = -10; g.lastBall = null; g.newBest = false;
+  g.acc = 0; g.combo = 0; g.lastScoreAt = -10; g.lastBall = null; g.newBest = false;
 }
 
 export function startGame(g) { const best = g.best; reset(g); g.best = best; g.state = 'ready'; }
@@ -104,8 +126,34 @@ function moveFlippers(g, input, h) {
   }
 }
 
-function substep(g, h) {
-  const b = g.ball;
+/** One scoring hit (a bumper or a trap): counts for the combo, the multiplier and the end-of-ball bonus. */
+function scoreHit(g, base, x, y, type, extra = {}) {
+  g.combo = g.time - g.lastScoreAt <= COMBO_WINDOW && g.combo > 0 ? g.combo + 1 : 1; g.lastScoreAt = g.time;
+  const pts = (base + COMBO_STEP * Math.max(0, g.combo - 2)) * g.multiplier;
+  g.score += pts; emit(g, { type, x, y, pts, ...extra });
+  if (g.combo >= 3) emit(g, { type: 'combo', combo: g.combo });
+  if (g.combo % 5 === 0) { const bonus = SUPER_COMBO * g.multiplier; g.score += bonus; emit(g, { type: 'supercombo', combo: g.combo, pts: bonus }); }
+  g.bumperHits++;
+  const level = Math.max(g.multiplier, Math.min(5, 1 + Math.floor(g.bumperHits / 5)));
+  if (level > g.multiplier) { g.multiplier = level; emit(g, { type: 'multiplier', value: level }); }
+}
+
+/** Every ball in play: yours first, then the free extras. */
+export function allBalls(g) { return [g.ball, ...g.extra]; }
+
+function release(g) {
+  const t = g.trap; const b = t.ball; const sa = t.s; g.trap = null; sa.cool = g.time + 0.8;
+  if (sa.kind === 'kick') {
+    b.vx = sa.vx; b.vy = sa.vy; // up and across the table
+    const room = Math.max(0, MAX_BALLS - 1 - g.extra.length); const shots = sa.extras.slice(0, room);
+    for (const sh of shots) g.extra.push({ x: sa.x, y: sa.y, vx: sh.vx, vy: sh.vy, layer: 0 });
+    if (shots.length) emit(g, { type: 'multiball', count: shots.length, x: sa.x, y: sa.y });
+  } else { b.layer = 1; b.layerSince = g.time; g.layerSince = g.time; g.deckSide = -g.deckSide; b.vx = 40 * g.deckSide; b.vy = 60; emit(g, { type: 'layer', layer: 1 }); } // the sideways nudge keeps it off the exact centre line
+  emit(g, { type: 'release', x: sa.x, y: sa.y, kind: sa.kind });
+}
+
+function substep(g, b, h) {
+  if (g.trap && g.trap.ball === b) { b.x = g.trap.s.x; b.y = g.trap.s.y; b.vx = 0; b.vy = 0; if (g.time >= g.trap.until) release(g); return; }
   b.vy += g.tuning.gravity * h;
   b.x += b.vx * h; b.y += b.vy * h;
   const sp = Math.hypot(b.vx, b.vy);
@@ -118,7 +166,8 @@ function substep(g, h) {
       const hit = collideSegment(b, w, w.thick ?? 0, g.tuning.wallBounce);
       if (hit && hit.impact > HARD_HIT) emit(g, { type: 'wall', x: b.x, y: b.y, impact: hit.impact });
     }
-    for (const side of ['left', 'right']) {
+    if (b.layer === 1) for (const w of DECK_WALLS) collideSegment(b, w, w.thick, g.tuning.wallBounce);
+    else for (const side of ['left', 'right']) {
       const f = g.flippers[side];
       const seg = { x1: f.px, y1: f.py, x2: f.px + FLIPPER_LEN * Math.cos(f.angle), y2: f.py + FLIPPER_LEN * Math.sin(f.angle) };
       const hit = collideSegment(b, seg, FLIPPER_THICK, g.tuning.flipperBounce, 0, 0, f.px, f.py, f.omega);
@@ -126,23 +175,31 @@ function substep(g, h) {
     }
   }
   for (const bu of g.bumpers) {
+    if ((bu.layer ?? 0) !== b.layer) continue;
     let nx = b.x - bu.x, ny = b.y - bu.y; const d = Math.hypot(nx, ny); const reach = bu.r + BALL_R;
     if (d >= reach) continue;
     if (d < 1e-6) { nx = 0; ny = -1; } else { nx /= d; ny /= d; }
     b.x = bu.x + nx * reach; b.y = bu.y + ny * reach;
     const kick = g.tuning.bumperKick;
     if (b.vx * nx + b.vy * ny < kick) { const vn = b.vx * nx + b.vy * ny; b.vx += (kick - vn) * nx; b.vy += (kick - vn) * ny; }
-    if (g.time - g.lastHit > 0.03 || bu !== g.lastBumper) {
-      g.combo = g.time - g.lastScoreAt <= COMBO_WINDOW && g.combo > 0 ? g.combo + 1 : 1; g.lastScoreAt = g.time;
-      const pts = (BUMPER_POINTS + COMBO_STEP * Math.max(0, g.combo - 2)) * g.multiplier;
-      g.score += pts; emit(g, { type: 'bumper', x: bu.x, y: bu.y, pts });
-      if (g.combo >= 3) emit(g, { type: 'combo', combo: g.combo });
-      g.bumperHits++;
-      const level = Math.max(g.multiplier, Math.min(5, 1 + Math.floor(g.bumperHits / 5)));
-      if (level > g.multiplier) { g.multiplier = level; emit(g, { type: 'multiplier', value: level }); }
+    if (g.time - (b.lastHit ?? -1) > 0.03 || bu !== b.lastBumper) {
+      scoreHit(g, bu.pts ?? BUMPER_POINTS, bu.x, bu.y, 'bumper');
+      if (bu.bank) {
+        bu.lit = true;
+        const bank = g.bumpers.filter((x) => x.bank);
+        if (bank.every((x) => x.lit)) { const pts = JACKPOT * g.multiplier; g.score += pts; emit(g, { type: 'jackpot', pts, multiplier: g.multiplier }); for (const x of bank) x.lit = false; }
+      }
     }
-    g.lastHit = g.time; g.lastBumper = bu;
+    b.lastHit = g.time; b.lastBumper = bu; g.lastHit = g.time; g.lastBumper = bu;
   }
+  if (b.layer === 0) {
+    for (const sa of g.saucers) {
+      if (g.trap || g.time < sa.cool || Math.hypot(b.x - sa.x, b.y - sa.y) >= sa.r || Math.hypot(b.vx, b.vy) >= CAPTURE_SPEED) continue;
+      g.trap = { s: sa, until: g.time + sa.hold, ball: b }; b.x = sa.x; b.y = sa.y; b.vx = 0; b.vy = 0;
+      scoreHit(g, sa.pts, sa.x, sa.y, 'trap', { kind: sa.kind });
+      break;
+    }
+  } else if (b.y > DECK_EXIT_Y || g.time - (b.layerSince ?? g.layerSince) > DECK_MAX) { b.layer = 0; emit(g, { type: 'layer', layer: 0 }); }
 }
 
 function drain(g) {
@@ -150,8 +207,9 @@ function drain(g) {
   const bonus = BONUS_PER_HIT * g.bumperHits * g.multiplier;
   if (bonus > 0) { g.score += bonus; emit(g, { type: 'bonus', pts: bonus, hits: g.bumperHits, multiplier: g.multiplier }); }
   g.lastBall = { number, bonus, hits: g.bumperHits };
-  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.combo = 0; g.charge = 0;
-  g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0 };
+  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.combo = 0; g.charge = 0; g.trap = null; g.extra = []; g.acc = 0;
+  for (const x of g.bumpers) x.lit = false;
+  g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0, layer: 0 };
   emit(g, { type: 'drain' });
   if (g.ballsLeft <= 0) { g.ballsLeft = 0; g.state = 'over'; g.newBest = g.score > g.best; g.best = Math.max(g.best, g.score); emit(g, { type: 'over' }); } else g.state = 'ready';
 }
@@ -166,11 +224,19 @@ export function step(g, input, rawDt) {
     return;
   }
   if (g.state !== 'playing') return;
-  const n = Math.max(1, Math.ceil(dt / SUB)); const h = dt / n;
-  for (let i = 0; i < n; i++) {
+  // Fixed-size physics pieces whatever the frame rate: the time a frame brings is added to a pot and used up 1/480 s at a time, the rest carried to the next frame.
+  // (Cutting each frame into differently sized pieces changed how much energy a ball sliding along a wall lost, so shots played out differently on a slow or uneven frame.)
+  g.acc += dt;
+  while (g.acc >= SUB - 1e-9) {
+    g.acc -= SUB; const h = SUB;
     g.time += h;
     moveFlippers(g, input, h);
-    substep(g, h);
-    if (g.ball.y > DRAIN_Y) { drain(g); return; }
+    for (const b of allBalls(g)) substep(g, b, h);
+    const lost = g.extra.filter((x) => x.y > DRAIN_Y);
+    if (lost.length) { g.extra = g.extra.filter((x) => x.y <= DRAIN_Y); for (const x of lost) emit(g, { type: 'extra-lost', x: x.x }); }
+    if (g.ball.y > DRAIN_Y) {
+      if (g.extra.length) { g.ball = g.extra.shift(); emit(g, { type: 'extra-lost', x: g.ball.x }); } // an extra becomes your ball: no ball is lost while another is in play
+      else { drain(g); return; }
+    }
   }
 }

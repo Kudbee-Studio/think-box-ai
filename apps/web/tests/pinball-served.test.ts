@@ -60,3 +60,16 @@ test('the served copy carries the ball-sticking fix and the arcade scoring, and 
   assert.match(src, /BONUS_PER_HIT/, 'the drain bonus is there');
   assert.ok(html.includes('id="mute"'), 'the visible sound button is there');
 });
+
+test('the served copy has the upper deck, the ball traps and multiball (the standalone project at v0.5, not an older copy)', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /export const DECK_WALLS/, 'the upper deck');
+  assert.match(src, /export const SAUCERS/, 'the ball traps');
+  assert.match(src, /const MAX_BALLS = 3/, 'at most three balls at once');
+  assert.match(src, /export function allBalls/, 'several balls are tracked');
+  assert.match(src, /kind: 'kick'[^\n]*hold: 3,/, 'the side trap locks for three seconds');
+  assert.match(src, /const DRAIN_Y = /, 'the ball-sticking fix is still there');
+  assert.match(src, /funnel: a ball rolling down the left wall/, 'the funnel that guides balls into the lock');
+  assert.match(src, /const CAPTURE_SPEED = 1500/, 'a launched ball arriving fast is still caught');
+  assert.match(src, /g\.acc \+= dt;/, 'the physics advances in fixed steps, so it does not depend on the frame rate');
+});
