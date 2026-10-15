@@ -3860,3 +3860,6 @@ A small browser arcade game (separate project `~/projects/starfall`, tested rule
 
 ### P3.85: Pinball linked from the dashboard (PR #425)
 A second browser arcade game (separate project `~/projects/pinball` v0.2: tested physics, table-feel panel, sound, hit effects) is copied into `apps/web/public/pinball/` and served at `/pinball/`; the header has a Pinball link beside the Game (Starfall) link. Checked in Chromium through the dashboard (CSP applies). Not play-tested by a person; the copy is manual. Evidence: `docs/evidence/p3.85-pinball-link/RESULTS.md`.
+
+### P3.86: Pinball arcade feel, v0.3 (PR #426)
+`apps/web/public/pinball/` is refreshed from `~/projects/pinball`: the ball-sticking fix (v0.2.1), combo scoring and a drain bonus, a Ball lost banner, a clearer game over (new best, guarded restart), more effects and sound, and a visible Sound button. Physics constants and geometry are unchanged. The standalone project's original 52 tests pass unmodified against the new source (66 in all). Checked in Chromium through the dashboard. Not play-tested or heard by a person; not tried on a phone. Evidence: `docs/evidence/p3.86-pinball-arcade-feel/RESULTS.md`.

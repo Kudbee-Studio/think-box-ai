@@ -7,6 +7,9 @@ const SOUNDS = {
   wall: { type: 'triangle', from: 320, to: 200, dur: 0.05, vol: 0.12, gap: 80 },
   launch: { type: 'sawtooth', from: 180, to: 900, dur: 0.35, vol: 0.2, gap: 200 },
   drain: { type: 'sawtooth', from: 320, to: 60, dur: 0.7, vol: 0.25, gap: 300 },
+  bonus: { type: 'triangle', from: 520, to: 780, dur: 0.3, vol: 0.2, gap: 200 },
+  combo: { type: 'sine', from: 700, to: 1000, dur: 0.12, vol: 0.18, gap: 60 },
+  multiplier: { type: 'square', from: 1040, to: 1560, dur: 0.25, vol: 0.14, gap: 200 },
   over: { type: 'sawtooth', from: 240, to: 40, dur: 1.0, vol: 0.28, gap: 500 },
 };
 
@@ -33,7 +36,8 @@ export function createSound(AudioCtor, now = () => (typeof performance !== 'unde
         const osc = ctx.createOscillator(); const gain = ctx.createGain(); const at = ctx.currentTime;
         const power = e.type === 'launch' ? Math.max(0.3, Math.min(1, e.power ?? 1)) : 1;
         osc.type = s.type;
-        osc.frequency.setValueAtTime(s.from, at); osc.frequency.exponentialRampToValueAtTime(s.from + (s.to - s.from) * power, at + s.dur);
+        const bend = e.type === 'combo' ? Math.min(8, e.combo ?? 3) * 40 : 0; // a longer combo sounds higher
+        osc.frequency.setValueAtTime(s.from + bend, at); osc.frequency.exponentialRampToValueAtTime(s.from + bend + (s.to - s.from) * power, at + s.dur);
         gain.gain.setValueAtTime(s.vol, at); gain.gain.exponentialRampToValueAtTime(0.0001, at + s.dur);
         osc.connect(gain); gain.connect(ctx.destination);
         osc.start(at); osc.stop(at + s.dur + 0.02);

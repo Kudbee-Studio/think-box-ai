@@ -24,7 +24,7 @@ test('the page uses relative paths and every file it names, and every module tho
     for (const m of fs.readFileSync(file, 'utf8').matchAll(/from '(\.[^']+)'/g)) queue.push(path.join(path.dirname(file), m[1]!));
   }
   for (const r of refs) assert.ok(fs.existsSync(path.join(game, r)), r);
-  assert.ok(seen.size >= 8, 'found the game modules');
+  assert.ok(seen.size >= 9, 'found the game modules');
 });
 
 test('no inline executable script and no inline handler, so the dashboard CSP cannot block the game', () => {
@@ -47,7 +47,16 @@ test('the running dashboard serves the game and its scripts with the security he
   assert.equal(page.status, 200); assert.match(page.headers.get('content-type') ?? '', /text\/html/);
   assert.match(page.headers.get('content-security-policy') ?? '', /script-src 'self'/);
   assert.match(await page.text(), /<canvas id="game"/);
-  for (const f of ['style.css', 'src/main.js', 'src/game.js', 'src/input.js', 'src/render.js', 'src/tuning.js', 'src/tuning-ui.js', 'src/sound.js', 'src/effects.js']) assert.equal((await fetch(`${base}/pinball/${f}`)).status, 200, f);
+  for (const f of ['style.css', 'src/main.js', 'src/game.js', 'src/input.js', 'src/render.js', 'src/tuning.js', 'src/tuning-ui.js', 'src/sound.js', 'src/effects.js', 'src/flow.js']) assert.equal((await fetch(`${base}/pinball/${f}`)).status, 200, f);
   const dash = await (await fetch(`${base}/`)).text();
   assert.match(dash, /<a id="pinball-link"[^>]*href="\/pinball\/"/);
+});
+
+test('the served copy carries the ball-sticking fix and the arcade scoring, and has a visible sound button (it is the standalone project at its latest version, not an old copy)', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /const DRAIN_Y = /, 'a ball below the flippers is lost straight away');
+  assert.match(src, /x1: 20, y1: 260, x2: 20, y2: 800/, 'the left wall is closed under the flippers');
+  assert.match(src, /thick: FLIPPER_THICK/, 'the side guides are as thick as the flippers');
+  assert.match(src, /BONUS_PER_HIT/, 'the drain bonus is there');
+  assert.ok(html.includes('id="mute"'), 'the visible sound button is there');
 });

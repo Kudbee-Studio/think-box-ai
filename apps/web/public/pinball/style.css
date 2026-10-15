@@ -10,3 +10,6 @@ canvas { width: min(100vw - 16px, (100vh - 90px) * 0.6); aspect-ratio: 3 / 5; ma
 .tuning-row { display: grid; grid-template-columns: 1fr 120px 44px; gap: 8px; align-items: center; padding: 3px 0; }
 .tuning-value { text-align: right; color: #8b949e; }
 .tuning-reset { margin-top: 8px; padding: 6px 10px; border-radius: 6px; border: 1px solid #30363d; background: #21262d; color: #e6edf3; }
+.bar { display: flex; gap: 8px; }
+#mute { padding: 6px 12px; border-radius: 6px; border: 1px solid #30363d; background: #161b22; color: #e6edf3; font-size: 13px; }
+#mute[aria-pressed="true"] { color: #8b949e; }

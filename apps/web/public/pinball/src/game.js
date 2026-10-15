@@ -12,8 +12,12 @@ const SUB = 1 / 480;
 const FLIPPER_LEN = 66;
 const FLIPPER_THICK = 5;
 const BUMPER_POINTS = 100;
+const COMBO_WINDOW = 2; // seconds between scoring hits that keep a combo going
+const COMBO_STEP = 50; // extra points per hit once the combo reaches 3
+const BONUS_PER_HIT = 25; // paid out per bumper hit when the ball is lost, times the multiplier
 const LANE_X = 445;
 const LANE_Y = 782;
+const DRAIN_Y = 795; // below the flippers the ball is lost (the launch lane floor holds a waiting ball at 782)
 
 /** The fixed walls: a round top (a half circle), side walls, the launch lane and the two guides that lead down to the flippers. */
 function buildWalls() {
@@ -23,13 +27,13 @@ function buildWalls() {
     const a0 = Math.PI - (i * Math.PI) / N, a1 = Math.PI - ((i + 1) * Math.PI) / N;
     w.push({ x1: cx + R * Math.cos(a0), y1: cy - R * Math.sin(a0), x2: cx + R * Math.cos(a1), y2: cy - R * Math.sin(a1) });
   }
-  w.push({ x1: 20, y1: 260, x2: 20, y2: 640 });     // left wall
+  w.push({ x1: 20, y1: 260, x2: 20, y2: 800 });     // left wall (down past the flippers, like the lane wall on the right, so a ball under the flippers cannot leave the table sideways)
   w.push({ x1: 460, y1: 260, x2: 460, y2: 790 });   // right wall (outside of the launch lane)
   w.push({ x1: 430, y1: 330, x2: 430, y2: 790 });   // inside of the launch lane
   w.push({ x1: 430, y1: 790, x2: 460, y2: 790 });   // floor of the lane
   w.push({ x1: 460, y1: 316, x2: 432, y2: 330, oneWay: true }); // gate: a ball going up passes, one coming down slides off into the playfield
-  w.push({ x1: 20, y1: 640, x2: 145, y2: 722 });    // left guide
-  w.push({ x1: 430, y1: 640, x2: 335, y2: 722 });   // right guide
+  w.push({ x1: 20, y1: 640, x2: 160, y2: 730, thick: FLIPPER_THICK }); // left guide: as thick as a flipper and ending at its pivot, so the two surfaces meet with no notch and no step for the ball to stick on; thickness also stops a swinging flipper squeezing the ball through it
+  w.push({ x1: 430, y1: 640, x2: 320, y2: 730, thick: FLIPPER_THICK }); // right guide (same)
   return w;
 }
 export const WALLS = buildWalls();
@@ -49,6 +53,7 @@ function reset(g) {
   };
   g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0 };
   g.events = []; g.score = 0; g.ballsLeft = 3; g.multiplier = 1; g.bumperHits = 0; g.charge = 0; g.time = 0; g.lastHit = -1;
+  g.combo = 0; g.lastScoreAt = -10; g.lastBall = null; g.newBest = false;
 }
 
 export function startGame(g) { const best = g.best; reset(g); g.best = best; g.state = 'ready'; }
@@ -110,7 +115,7 @@ function substep(g, h) {
   for (let pass = 0; pass < 2; pass++) {
     for (const w of WALLS) {
       if (w.oneWay && b.vy < 0) continue;
-      const hit = collideSegment(b, w, 0, g.tuning.wallBounce);
+      const hit = collideSegment(b, w, w.thick ?? 0, g.tuning.wallBounce);
       if (hit && hit.impact > HARD_HIT) emit(g, { type: 'wall', x: b.x, y: b.y, impact: hit.impact });
     }
     for (const side of ['left', 'right']) {
@@ -127,16 +132,28 @@ function substep(g, h) {
     b.x = bu.x + nx * reach; b.y = bu.y + ny * reach;
     const kick = g.tuning.bumperKick;
     if (b.vx * nx + b.vy * ny < kick) { const vn = b.vx * nx + b.vy * ny; b.vx += (kick - vn) * nx; b.vy += (kick - vn) * ny; }
-    if (g.time - g.lastHit > 0.03 || bu !== g.lastBumper) { const pts = BUMPER_POINTS * g.multiplier; g.score += pts; emit(g, { type: 'bumper', x: bu.x, y: bu.y, pts }); g.bumperHits++; g.multiplier = Math.max(g.multiplier, Math.min(5, 1 + Math.floor(g.bumperHits / 5))); }
+    if (g.time - g.lastHit > 0.03 || bu !== g.lastBumper) {
+      g.combo = g.time - g.lastScoreAt <= COMBO_WINDOW && g.combo > 0 ? g.combo + 1 : 1; g.lastScoreAt = g.time;
+      const pts = (BUMPER_POINTS + COMBO_STEP * Math.max(0, g.combo - 2)) * g.multiplier;
+      g.score += pts; emit(g, { type: 'bumper', x: bu.x, y: bu.y, pts });
+      if (g.combo >= 3) emit(g, { type: 'combo', combo: g.combo });
+      g.bumperHits++;
+      const level = Math.max(g.multiplier, Math.min(5, 1 + Math.floor(g.bumperHits / 5)));
+      if (level > g.multiplier) { g.multiplier = level; emit(g, { type: 'multiplier', value: level }); }
+    }
     g.lastHit = g.time; g.lastBumper = bu;
   }
 }
 
 function drain(g) {
-  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.charge = 0;
+  const number = 3 - g.ballsLeft + 1;
+  const bonus = BONUS_PER_HIT * g.bumperHits * g.multiplier;
+  if (bonus > 0) { g.score += bonus; emit(g, { type: 'bonus', pts: bonus, hits: g.bumperHits, multiplier: g.multiplier }); }
+  g.lastBall = { number, bonus, hits: g.bumperHits };
+  g.ballsLeft--; g.multiplier = 1; g.bumperHits = 0; g.combo = 0; g.charge = 0;
   g.ball = { x: LANE_X, y: LANE_Y, vx: 0, vy: 0 };
   emit(g, { type: 'drain' });
-  if (g.ballsLeft <= 0) { g.ballsLeft = 0; g.state = 'over'; g.best = Math.max(g.best, g.score); emit(g, { type: 'over' }); } else g.state = 'ready';
+  if (g.ballsLeft <= 0) { g.ballsLeft = 0; g.state = 'over'; g.newBest = g.score > g.best; g.best = Math.max(g.best, g.score); emit(g, { type: 'over' }); } else g.state = 'ready';
 }
 
 export function step(g, input, rawDt) {
@@ -154,6 +171,6 @@ export function step(g, input, rawDt) {
     g.time += h;
     moveFlippers(g, input, h);
     substep(g, h);
-    if (g.ball.y > HEIGHT + 20) { drain(g); return; }
+    if (g.ball.y > DRAIN_Y) { drain(g); return; }
   }
 }
