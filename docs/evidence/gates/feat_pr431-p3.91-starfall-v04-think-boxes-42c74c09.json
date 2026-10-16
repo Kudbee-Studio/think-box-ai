@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-16T18:14:33.928Z",
+  "head": "42c74c09",
+  "base": "gh/main",
+  "base_sha": "b06fa966",
+  "branch": "feat/pr431-p3.91-starfall-v04-think-boxes",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1717
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1872
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1594
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 8526
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 797
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1666 passed, 0 failed; lines 92.95% (floor 90%)",
+      "ms": 117952
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 641023
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 314249
+    }
+  ],
+  "verdict": "PASS"
+}
