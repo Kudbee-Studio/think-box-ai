@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-16T17:48:17.749Z",
+  "head": "a646a535",
+  "base": "gh/main",
+  "base_sha": "4bc047d9",
+  "branch": "feat/pr430-p3.90-starfall-v03",
+  "dirty": false,
+  "min_coverage": 90,
+  "steps": [
+    {
+      "step": "lint",
+      "status": "pass",
+      "detail": "npm run lint",
+      "ms": 1855
+    },
+    {
+      "step": "typecheck",
+      "status": "pass",
+      "detail": "npm run typecheck",
+      "ms": 1666
+    },
+    {
+      "step": "tsc",
+      "status": "pass",
+      "detail": "npm run typecheck:tsc",
+      "ms": 1621
+    },
+    {
+      "step": "secrets",
+      "status": "pass",
+      "detail": "0 new (baseline holds 23)",
+      "ms": 12103
+    },
+    {
+      "step": "audit",
+      "status": "pass",
+      "detail": "0 critical, 0 high, 0 moderate, 0 low",
+      "ms": 959
+    },
+    {
+      "step": "tests",
+      "status": "pass",
+      "detail": "1665 passed, 0 failed; lines 92.88% (floor 90%)",
+      "ms": 116345
+    },
+    {
+      "step": "codeql-js",
+      "status": "pass",
+      "detail": "28 alerts here, 28 on base, 0 new",
+      "ms": 336049
+    },
+    {
+      "step": "codeql-py",
+      "status": "pass",
+      "detail": "21 alerts here, 21 on base, 0 new",
+      "ms": 165688
+    }
+  ],
+  "verdict": "PASS"
+}
