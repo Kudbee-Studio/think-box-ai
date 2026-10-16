@@ -12,6 +12,10 @@ const SOUNDS = {
   'boss-down': { type: 'sawtooth', from: 180, to: 1500, dur: 0.9, vol: 0.28, gap: 800 },
   combo: { type: 'sine', from: 880, to: 1200, dur: 0.1, vol: 0.14, gap: 60 },
   'enemy-fire': { type: 'square', from: 240, to: 160, dur: 0.08, vol: 0.07, gap: 150 },
+  bomb: { type: 'sawtooth', from: 520, to: 50, dur: 0.6, vol: 0.3, gap: 300 },
+  'boss-enrage': { type: 'sawtooth', from: 95, to: 55, dur: 0.8, vol: 0.28, gap: 1000 },
+  perfect: { type: 'sine', from: 660, to: 1320, dur: 0.45, vol: 0.2, gap: 600 },
+  summon: { type: 'triangle', from: 200, to: 420, dur: 0.3, vol: 0.18, gap: 800 },
   over: { type: 'sawtooth', from: 260, to: 40, dur: 1.1, vol: 0.28, gap: 800 },
 };
 

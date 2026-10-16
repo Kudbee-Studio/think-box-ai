@@ -59,3 +59,12 @@ test('the served copy is Starfall v0.2: waves and bosses, five enemy types, powe
   assert.match(src, /export function addHighScore/, 'high scores');
   assert.ok(html.includes('id="mute"'), 'a sound button'); assert.ok(html.includes('id="initials"'), 'the initials box');
 });
+
+test('the served copy is Starfall v0.3: formations, three boss kinds that enrage, the bomb, perfect waves, difficulties, sectors, and the buttons and keys for them', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8');
+  assert.match(src, /export function planSpawns/, 'formations'); assert.match(src, /const BOSS_KINDS = \['gunship', 'spiral', 'summoner'\]/, 'three boss kinds'); assert.match(src, /boss-enrage/, 'enraged bosses');
+  assert.match(src, /export function useBomb/, 'the bomb'); assert.match(src, /type: 'perfect'/, 'perfect waves'); assert.match(src, /export const DIFFICULTIES/, 'difficulties'); assert.match(src, /export const SECTORS/, 'sectors');
+  assert.match(src, /waveKills/, 'a perfect wave needs half the wave shot down (doing nothing earns nothing)');
+  assert.ok(html.includes('id="difficulty"'), 'the difficulty buttons'); assert.ok(html.includes('data-bomb'), 'a bomb button for touch screens');
+  assert.match(fs.readFileSync(path.join(game, 'src', 'render.js'), 'utf8'), /bomb: \['#ffa657', 'B'\]/, 'a bomb power-up can be drawn (a missing entry once froze the screen)');
+});

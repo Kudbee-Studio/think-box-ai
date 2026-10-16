@@ -18,4 +18,4 @@ export function createInput() {
 }
 
 /** Keys that should not scroll the page or press a focused button while playing. */
-export const GAME_KEYS = new Set([...LEFT, ...RIGHT, ...FIRE, 'KeyP', 'KeyM', 'Enter']);
+export const GAME_KEYS = new Set([...LEFT, ...RIGHT, ...FIRE, 'KeyP', 'KeyM', 'KeyB', 'Enter']);
