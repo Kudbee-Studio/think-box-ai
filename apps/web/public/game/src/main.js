@@ -1,5 +1,5 @@
 // The page: wires keyboard, touch and the sound button to the game, runs the clock, keeps the high scores. Rules are in game.js, drawing in render.js.
-import { createGame, step, startGame, togglePause, addHighScore, cleanInitials, useBomb, setDifficulty, DIFFICULTIES, WIDTH, HEIGHT } from './game.js';
+import { createGame, step, startGame, togglePause, addHighScore, cleanInitials, useBomb, setDifficulty, selectWeapon, cycleWeapon, DIFFICULTIES, WEAPONS, WIDTH, HEIGHT } from './game.js';
 import { createInput, GAME_KEYS } from './input.js';
 import { draw } from './render.js';
 import { createSound } from './sound.js';
@@ -70,6 +70,9 @@ addEventListener('keydown', (e) => {
   if (!e.repeat) {
     if (e.code === 'KeyM') { toggleMute(); return; }
     if (e.code === 'KeyB') { useBomb(game); return; }
+    if (/^Digit[1-4]$/.test(e.code)) { selectWeapon(game, Object.keys(WEAPONS)[Number(e.code.slice(5)) - 1]); return; }
+    if (e.code === 'KeyQ') { cycleWeapon(game, -1); return; }
+    if (e.code === 'KeyE') { cycleWeapon(game, 1); return; }
     if (e.code === 'Enter') startOrRestart();
     else if (e.code === 'KeyP') togglePause(game);
     else if (e.code === 'Space' && (game.state === 'title' || game.state === 'over')) { startOrRestart(); return; }
@@ -84,6 +87,7 @@ canvas.addEventListener('pointerdown', (e) => { sound.unlock(); if (game.state !
 canvas.addEventListener('pointermove', (e) => { if (touchX !== null) touchX = toGame(e); });
 for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, () => { touchX = null; });
 
+document.querySelector('[data-weapon]')?.addEventListener('pointerdown', (e) => { e.preventDefault(); sound.unlock(); cycleWeapon(game, 1); });
 document.querySelector('[data-bomb]')?.addEventListener('pointerdown', (e) => { e.preventDefault(); sound.unlock(); useBomb(game); });
 for (const btn of document.querySelectorAll('[data-touch]')) {
   const name = btn.dataset.touch;

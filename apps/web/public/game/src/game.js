@@ -6,9 +6,8 @@ const SUB = 1 / 120;
 const MAX_DT = 1 / 20; // a long frame (tab in the background) is cut so nothing jumps through anything
 const PLAYER_SPEED = 320;
 const TOUCH_SPEED = 520; // how fast the ship follows a finger
-const FIRE_EVERY = 0.18;
-const RAPID_EVERY = 0.09;
-const BULLET_SPEED = 640;
+const OVERCLOCK = 1.6; // fire-rate multiplier while the overclock power-up lasts
+const MAX_BULLETS = 200;
 const SAFE_SECONDS = 2;
 const COMBO_WINDOW = 1.5;
 const MAX_LIVES = 5;
@@ -40,12 +39,34 @@ const diff = (g) => DIFFICULTIES[g.difficulty] ?? DIFFICULTIES.normal;
 
 /** The five ordinary enemies. (The boss is separate: see spawnEnemy.) */
 export const ENEMY_TYPES = {
-  drifter: { r: 16, hp: 1, pts: 10, drop: 0.08 },
-  zigzag: { r: 13, hp: 1, pts: 20, drop: 0.1 },
-  tank: { r: 24, hp: 3, pts: 30, drop: 0.3 },
-  shooter: { r: 17, hp: 2, pts: 40, drop: 0.2 },
-  swooper: { r: 14, hp: 1, pts: 25, drop: 0.12 },
+  drifter: { r: 16, hp: 1, pts: 10, drop: 0.08, tokens: 0.45, name: 'Idea Box', color: '#38bdf8' },
+  zigzag: { r: 13, hp: 1, pts: 20, drop: 0.1, tokens: 0.5, name: 'Spin Box', color: '#a78bfa' },
+  tank: { r: 24, hp: 3, pts: 30, drop: 0.3, tokens: 2, name: 'Vault Box', color: '#f43f5e' },
+  shooter: { r: 17, hp: 2, pts: 40, drop: 0.2, tokens: 0.8, name: 'Cannon Box', color: '#fb923c' },
+  swooper: { r: 14, hp: 1, pts: 25, drop: 0.12, tokens: 0.5, name: 'Dart Box', color: '#34d399' },
 };
+/** The bosses are Mega Think Boxes, one for each kind. */
+export const BOSS_STYLE = {
+  gunship: { name: 'Mega Box: Gunship', color: '#a78bfa' },
+  spiral: { name: 'Mega Box: Spiral', color: '#facc15' },
+  summoner: { name: 'Mega Box: Summoner', color: '#34d399' },
+};
+
+/** The ship's weapons, in the order the number keys pick them. Each has four levels, raised by weapon crates and by Think Tokens. */
+export const WEAPONS = { laser: { name: 'Laser' }, spread: { name: 'Spread' }, missile: { name: 'Missiles' }, rail: { name: 'Rail' } };
+export const MAX_WEAPON_LEVEL = 4;
+export const TOKENS_PER_LEVEL = 8;
+
+/** What one trigger pull of a weapon at a level fires: the bullets (sideways offset dx and angle a), the time between pulls, damage, how many boxes a bullet goes through, speed, size. */
+export function fireSpec(weapon, level) {
+  const lv = Math.max(1, Math.min(MAX_WEAPON_LEVEL, Math.floor(level) || 1)) - 1;
+  switch (weapon) {
+    case 'spread': { const n = [3, 5, 7, 9][lv]; const step = [0.2, 0.15, 0.13, 0.11][lv]; return { shots: Array.from({ length: n }, (_, i) => ({ a: (i - (n - 1) / 2) * step })), every: [0.26, 0.24, 0.22, 0.2][lv], dmg: 1, pierce: 1, speed: 620, r: 3 }; }
+    case 'missile': return { shots: [[0], [-8, 8], [-12, 0, 12], [-18, -6, 6, 18]][lv].map((dx) => ({ dx, a: dx * 0.004 })), every: [0.45, 0.42, 0.4, 0.34][lv], dmg: 2, pierce: 1, speed: 380, r: 5, homing: true, splash: 36 };
+    case 'rail': return { shots: [{}], every: [0.42, 0.36, 0.3, 0.24][lv], dmg: [3, 3, 4, 5][lv], pierce: [3, 5, 8, 99][lv], speed: 900, r: lv >= 2 ? 7 : 5 };
+    default: return { shots: [[0], [-7, 7], [-10, 0, 10], [-10, 0, 10]][lv].map((dx) => ({ dx })), every: [0.18, 0.17, 0.16, 0.12][lv], dmg: 1, pierce: 1, speed: 640, r: 3 };
+  }
+}
 const BOSS = { r: 44, pts: 1000 };
 /** The wave an enemy type first appears in. */
 const DEBUT = { drifter: 1, zigzag: 2, tank: 3, shooter: 4, swooper: 6 };
@@ -68,9 +89,9 @@ export function createGame(seed = 1) {
 
 function reset(g) {
   g.rng = g.seed;
-  g.player = { x: WIDTH / 2, y: HEIGHT - 60, r: 16, cool: 0, invulnerable: 0, rapid: 0, spread: 0, shield: 0 };
+  g.player = { x: WIDTH / 2, y: HEIGHT - 60, r: 16, cool: 0, invulnerable: 0, rapid: 0, shield: 0, weapons: { laser: 1, spread: 0, missile: 0, rail: 0 }, weapon: 'laser' };
   g.bullets = []; g.enemyBullets = []; g.enemies = []; g.powerups = []; g.particles = []; g.events = [];
-  g.score = 0; g.kills = 0; g.lives = diff(g).lives; g.bombs = 1; g.hurtThisWave = false; g.time = 0; g.acc = 0;
+  g.tokens = 0; g.score = 0; g.kills = 0; g.lives = diff(g).lives; g.bombs = 1; g.hurtThisWave = false; g.time = 0; g.acc = 0;
   g.combo = 0; g.comboTimer = 0; g.multiplier = 1; g.stats = { shots: 0, hits: 0 };
   g.wave = 1; g.waveState = 'break'; g.breakTimer = 1; g.toSpawn = []; g.spawnTimer = 0;
 }
@@ -125,7 +146,7 @@ export function planSpawns(list, n, g) {
 
 function spawnEnemy(g, type, opts = {}) {
   if (type === 'boss') {
-    const hp = Math.round((22 + 14 * Math.floor(g.wave / BOSS_EVERY)) * diff(g).boss); // 36 for the first boss, 14 more for each after
+    const hp = Math.round((50 + 18 * Math.floor(g.wave / BOSS_EVERY)) * diff(g).boss); // 68 for the first boss, 18 more for each after (the weapons are far stronger than in v0.3)
     g.enemies.push({ type: 'boss', kind: bossKind(g.wave), x: WIDTH / 2, y: -BOSS.r, r: BOSS.r, hp, maxHp: hp, t: 0, fireT: 1.5, summonT: 4, spin: 0, burst: 0 });
     emit(g, { type: 'boss', kind: bossKind(g.wave) });
     g.powerups.push({ kind: 'shield', x: 60 + rand(g) * (WIDTH - 120), y: -12, r: 12 }); // a free shield falls from the top as a boss arrives
@@ -188,19 +209,29 @@ function moveEnemy(g, e, h) {
   e.x = clamp(e.x, e.r, WIDTH - e.r);
 }
 
-function burst(g, x, y, n, speed, life = 0.5) {
+function burst(g, x, y, n, speed, life = 0.5, color = null) {
   for (let i = 0; i < n && g.particles.length < MAX_PARTICLES; i++) {
     const a = (i / n) * 6.283 + rand(g); const v = speed * (0.5 + rand(g));
-    g.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life });
+    g.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, c: color });
   }
 }
 
+function dropTokens(g, e) {
+  const t = e.type === 'boss' ? 10 : ENEMY_TYPES[e.type]?.tokens ?? 0; let n = Math.floor(t); if (rand(g) < t - n) n++;
+  for (let i = 0; i < n; i++) g.powerups.push({ kind: 'token', x: clamp(e.x + (i - (n - 1) / 2) * 14, 12, WIDTH - 12), y: e.y - (i % 2) * 8, r: 8 });
+}
+
 function drop(g, e) {
+  dropTokens(g, e);
+  const up = upgradable(g);
+  if (e.type === 'boss' && up.length) { g.powerups.push({ kind: 'weapon', weapon: up.find((w) => g.player.weapons[w] === 0) ?? up[Math.floor(rand(g) * up.length)], x: clamp(e.x, 16, WIDTH - 16), y: e.y, r: 12 }); return; }
   const chance = e.type === 'boss' ? 1 : (ENEMY_TYPES[e.type]?.drop ?? 0.1);
   if (rand(g) >= chance * (e.type === 'boss' ? 1 : diff(g).drop)) return;
-  const kinds = [['rapid', 3], ['spread', 3], ['shield', 3], ['bomb', 1.5]]; if (g.lives < MAX_LIVES) kinds.push(['life', e.type === 'boss' ? 4 : 1]);
+  const kinds = [['rapid', 2], ['shield', 3], ['bomb', 1.5]]; if (g.lives < MAX_LIVES) kinds.push(['life', e.type === 'boss' ? 4 : 1]); if (up.length) kinds.push(['weapon', 3]);
   let r = rand(g) * kinds.reduce((s, k) => s + k[1], 0); let kind = 'rapid'; for (const [k, w] of kinds) { r -= w; if (r <= 0) { kind = k; break; } }
-  g.powerups.push({ kind, x: clamp(e.x, 16, WIDTH - 16), y: e.y, r: 12 });
+  const item = { kind, x: clamp(e.x, 16, WIDTH - 16), y: e.y, r: 12 };
+  if (kind === 'weapon') item.weapon = up.find((w) => g.player.weapons[w] === 0 && rand(g) < 0.6) ?? up[Math.floor(rand(g) * up.length)];
+  g.powerups.push(item);
 }
 
 function kill(g, e) {
@@ -209,7 +240,7 @@ function kill(g, e) {
   const pts = base * g.multiplier; g.score += pts; g.kills++; g.waveKills = (g.waveKills ?? 0) + 1;
   emit(g, { type: e.type === 'boss' ? 'boss-down' : 'kill', kind: e.type === 'boss' ? e.kind : e.type, x: e.x, y: e.y, pts, big: e.r > 20 });
   if (g.combo >= 3) emit(g, { type: 'combo', combo: g.combo, multiplier: g.multiplier });
-  burst(g, e.x, e.y, e.type === 'boss' ? 40 : e.r > 20 ? 16 : 10, e.type === 'boss' ? 260 : 140, e.type === 'boss' ? 1 : 0.5);
+  burst(g, e.x, e.y, e.type === 'boss' ? 40 : e.r > 20 ? 16 : 10, e.type === 'boss' ? 260 : 140, e.type === 'boss' ? 1 : 0.5, e.type === 'boss' ? BOSS_STYLE[e.kind]?.color : ENEMY_TYPES[e.type]?.color);
   drop(g, e);
 }
 
@@ -217,19 +248,21 @@ function hurt(g) {
   const p = g.player; if (p.invulnerable > 0) return;
   g.hurtThisWave = true; g.combo = 0; g.comboTimer = 0; g.multiplier = 1;
   if (p.shield > 0) { p.shield = 0; p.invulnerable = 0.5; emit(g, { type: 'shield-break', x: p.x, y: p.y }); burst(g, p.x, p.y, 12, 160, 0.4); return; }
-  g.lives--; p.invulnerable = SAFE_SECONDS; p.rapid = 0; p.spread = 0; g.enemyBullets = [];
+  g.lives--; p.invulnerable = SAFE_SECONDS; p.rapid = 0; g.enemyBullets = [];
+  if (p.weapons[p.weapon] > 1) p.weapons[p.weapon]--; // the weapon in your hands loses a level
   emit(g, { type: 'hit', x: p.x, y: p.y }); burst(g, p.x, p.y, 18, 200, 0.6);
   if (g.lives <= 0) {
     g.lives = 0; g.state = 'over'; g.best = Math.max(g.best, g.score);
-    const shots = g.stats.shots; g.lastRun = { score: g.score, wave: g.wave, kills: g.kills, accuracy: shots ? Math.round((g.stats.hits / shots) * 100) : 0, seconds: Math.round(g.time) };
+    const shots = g.stats.shots; g.lastRun = { score: g.score, wave: g.wave, kills: g.kills, accuracy: shots ? Math.min(100, Math.round((g.stats.hits / shots) * 100)) : 0, seconds: Math.round(g.time) };
     emit(g, { type: 'over' });
   }
 }
 
 function pickup(g, up) {
   const p = g.player;
-  if (up.kind === 'rapid') p.rapid = 8; else if (up.kind === 'spread') p.spread = 10; else if (up.kind === 'shield') p.shield = 12; else if (up.kind === 'life') g.lives = Math.min(MAX_LIVES, g.lives + 1); else if (up.kind === 'bomb') g.bombs = Math.min(MAX_BOMBS, g.bombs + 1);
-  g.score += 25; emit(g, { type: 'pickup', kind: up.kind, x: up.x, y: up.y });
+  if (up.kind === 'rapid') p.rapid = 8; else if (up.kind === 'weapon') upgradeWeapon(g, up.weapon, 'crate'); else if (up.kind === 'token') { g.tokens++; g.score += 10; if (g.tokens >= TOKENS_PER_LEVEL) { g.tokens = 0; upgradeWeapon(g, p.weapon, 'tokens'); } } else if (up.kind === 'shield') p.shield = 12; else if (up.kind === 'life') g.lives = Math.min(MAX_LIVES, g.lives + 1); else if (up.kind === 'bomb') g.bombs = Math.min(MAX_BOMBS, g.bombs + 1);
+  if (up.kind !== 'token' && up.kind !== 'weapon') g.score += 25;
+  emit(g, { type: 'pickup', kind: up.kind, weapon: up.weapon, x: up.x, y: up.y });
 }
 
 function advanceWave(g, h) {
@@ -251,32 +284,65 @@ function advanceWave(g, h) {
     g.wave++; g.waveState = 'break'; g.breakTimer = 2.2; emit(g, { type: 'wave', wave: g.wave }); }
 }
 
+const TOKEN_MAGNET = 90;
+/** A missile speeds up and turns towards the nearest box in front of it (turning at most 5 radians a second). */
+function steerMissile(g, b, h) {
+  let ang = Math.atan2(b.vx, -b.vy); const speed = Math.min(560, Math.hypot(b.vx, b.vy) + 400 * h);
+  let target = null, best = 420 * 420;
+  for (const e of g.enemies) { if (e.hp <= 0 || e.y > b.y + 20) continue; const d = (e.x - b.x) ** 2 + (e.y - b.y) ** 2; if (d < best) { best = d; target = e; } }
+  if (target) { let turn = Math.atan2(target.x - b.x, -(target.y - b.y)) - ang; turn = Math.atan2(Math.sin(turn), Math.cos(turn)); ang += clamp(turn, -5 * h, 5 * h); }
+  b.vx = Math.sin(ang) * speed; b.vy = -Math.cos(ang) * speed;
+}
+/** A missile's blast: every other box within its radius loses one hit point. */
+function splashDamage(g, b, hit) {
+  for (const o of g.enemies) {
+    if (o === hit || o.hp <= 0) continue; if (Math.hypot(o.x - b.x, o.y - b.y) - o.r > b.splash) continue;
+    o.hp -= 1; o.flash = 0.08; if (o.hp <= 0) kill(g, o); else emit(g, { type: 'hit-enemy', x: o.x, y: o.y });
+  }
+  burst(g, b.x, b.y, 6, 120, 0.3, '#ffa657');
+}
+
 function substep(g, input, h) {
   g.time += h; const p = g.player;
   if (typeof input.targetX === 'number') p.x = clamp(p.x + clamp(input.targetX - p.x, -TOUCH_SPEED * h, TOUCH_SPEED * h), p.r, WIDTH - p.r); // a finger on the screen: glide to it
   else p.x = clamp(p.x + ((input.right ? 1 : 0) - (input.left ? 1 : 0)) * PLAYER_SPEED * h, p.r, WIDTH - p.r);
   p.cool = Math.max(0, p.cool - h); p.invulnerable = Math.max(0, p.invulnerable - h);
-  p.rapid = Math.max(0, p.rapid - h); p.spread = Math.max(0, p.spread - h); p.shield = Math.max(0, p.shield - h);
-  if (input.fire && p.cool === 0) {
-    const angles = p.spread > 0 ? [-0.18, 0, 0.18] : [0];
-    for (const a of angles) { g.bullets.push({ x: p.x, y: p.y - p.r, r: 3, vx: Math.sin(a) * BULLET_SPEED, vy: -Math.cos(a) * BULLET_SPEED }); g.stats.shots++; }
-    p.cool = p.rapid > 0 ? RAPID_EVERY : FIRE_EVERY; emit(g, { type: 'fire' });
+  p.rapid = Math.max(0, p.rapid - h); p.shield = Math.max(0, p.shield - h);
+  if (input.fire && p.cool === 0 && g.bullets.length < MAX_BULLETS) {
+    const spec = fireSpec(p.weapon, p.weapons[p.weapon]);
+    for (const sh of spec.shots) {
+      const a = sh.a ?? 0;
+      g.bullets.push({ x: p.x + (sh.dx ?? 0), y: p.y - p.r, r: spec.r, vx: Math.sin(a) * spec.speed, vy: -Math.cos(a) * spec.speed, dmg: spec.dmg, pierce: spec.pierce, kind: p.weapon, homing: !!spec.homing, splash: spec.splash ?? 0, hits: [] });
+      g.stats.shots++;
+    }
+    p.cool = spec.every / (p.rapid > 0 ? OVERCLOCK : 1); emit(g, { type: 'fire', weapon: p.weapon });
   }
-  for (const b of g.bullets) { b.x += b.vx * h; b.y += b.vy * h; }
-  g.bullets = g.bullets.filter((b) => b.y > -10 && b.x > -10 && b.x < WIDTH + 10);
+  for (const b of g.bullets) {
+    if (b.homing) steerMissile(g, b, h);
+    b.x += b.vx * h; b.y += b.vy * h;
+  }
+  g.bullets = g.bullets.filter((b) => b.y > -10 && b.x > -10 && b.x < WIDTH + 10 && b.y < HEIGHT + 10);
 
   advanceWave(g, h);
   for (const e of g.enemies) moveEnemy(g, e, h);
   for (const b of g.enemyBullets) { b.x += b.vx * h; b.y += b.vy * h; }
   g.enemyBullets = g.enemyBullets.filter((b) => b.y < HEIGHT + 10 && b.y > -20 && b.x > -20 && b.x < WIDTH + 20);
-  for (const u of g.powerups) u.y += 90 * h;
+  for (const u of g.powerups) {
+    if (u.kind === 'token') { // Think Tokens drift towards the ship when it is close
+      const dx = p.x - u.x, dy = p.y - u.y, d = Math.hypot(dx, dy);
+      if (d < TOKEN_MAGNET && d > 1) { u.x += (dx / d) * 220 * h; u.y += (dy / d) * 220 * h; } else u.y += 75 * h;
+    } else u.y += 90 * h;
+  }
   g.powerups = g.powerups.filter((u) => u.y < HEIGHT + 20);
 
   for (const b of g.bullets) {
+    b.hits ??= []; b.dmg ??= 1; b.pierce ??= 1; // (bullets made by the game always have these; older shapes are tolerated)
     for (const e of g.enemies) {
-      if (b.dead || e.hp <= 0 || !touching(b, e)) continue;
-      b.dead = true; e.hp--; g.stats.hits++; e.flash = 0.08;
+      if (b.dead || e.hp <= 0 || !touching(b, e) || b.hits.includes(e)) continue;
+      b.hits.push(e); g.stats.hits++; e.flash = 0.08; e.hp -= b.dmg;
       if (e.hp <= 0) kill(g, e); else emit(g, { type: 'hit-enemy', x: b.x, y: b.y });
+      if (b.splash) splashDamage(g, b, e);
+      if (--b.pierce <= 0) b.dead = true;
     }
   }
   g.bullets = g.bullets.filter((b) => !b.dead);
@@ -304,6 +370,27 @@ export function step(g, input, rawDt) {
   g.acc += Math.min(Math.max(rawDt, 0), MAX_DT);
   while (g.acc >= SUB - 1e-9 && g.state === 'playing') { g.acc -= SUB; substep(g, input, SUB); }
 }
+
+/** Switches to a weapon you own. Returns whether it worked. */
+export function selectWeapon(g, name) {
+  const p = g.player; if (!Object.prototype.hasOwnProperty.call(WEAPONS, name) || !(p.weapons[name] > 0)) return false;
+  p.weapon = name; emit(g, { type: 'weapon', weapon: name, level: p.weapons[name] }); return true;
+}
+/** The next (or, with -1, the previous) weapon you own, going round. */
+export function cycleWeapon(g, dir = 1) {
+  const owned = Object.keys(WEAPONS).filter((w) => g.player.weapons[w] > 0); if (owned.length < 2) return false;
+  const at = owned.indexOf(g.player.weapon); return selectWeapon(g, owned[(at + (dir < 0 ? owned.length - 1 : 1)) % owned.length]);
+}
+/** A weapon crate (source 'crate'): unlocks the weapon and switches to it, or raises its level. A full token meter (source 'tokens') raises the level of the weapon in your hands.
+ *  At the top level either pays points instead. */
+function upgradeWeapon(g, name, source) {
+  const p = g.player;
+  if (p.weapons[name] >= MAX_WEAPON_LEVEL) { g.score += 500; emit(g, { type: 'weapon-up', weapon: name, level: MAX_WEAPON_LEVEL, max: true }); return; }
+  const fresh = p.weapons[name] === 0; p.weapons[name]++;
+  if (source === 'crate') { p.weapon = name; emit(g, { type: 'weapon', weapon: name, level: p.weapons[name] }); if (!fresh) emit(g, { type: 'weapon-up', weapon: name, level: p.weapons[name] }); }
+  else emit(g, { type: 'weapon-up', weapon: name, level: p.weapons[name] });
+}
+const upgradable = (g) => Object.keys(WEAPONS).filter((w) => g.player.weapons[w] < MAX_WEAPON_LEVEL);
 
 /** The bomb: clears every enemy shot, hurts every enemy on screen (a boss loses a chunk but is never killed by it), gives a second of safety. Returns whether it went off. */
 export function useBomb(g) {
