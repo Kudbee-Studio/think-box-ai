@@ -68,3 +68,12 @@ test('the served copy is Starfall v0.3: formations, three boss kinds that enrage
   assert.ok(html.includes('id="difficulty"'), 'the difficulty buttons'); assert.ok(html.includes('data-bomb'), 'a bomb button for touch screens');
   assert.match(fs.readFileSync(path.join(game, 'src', 'render.js'), 'utf8'), /bomb: \['#ffa657', 'B'\]/, 'a bomb power-up can be drawn (a missing entry once froze the screen)');
 });
+
+test('the served copy is Starfall v0.4: Think Boxes in the product\'s layer colours, four weapons with four levels, Think Tokens, weapon crates, the weapon keys and the weapon button', () => {
+  const src = fs.readFileSync(path.join(game, 'src', 'game.js'), 'utf8'); const render = fs.readFileSync(path.join(game, 'src', 'render.js'), 'utf8'); const main = fs.readFileSync(path.join(game, 'src', 'main.js'), 'utf8');
+  for (const name of ['Idea Box', 'Spin Box', 'Vault Box', 'Cannon Box', 'Dart Box']) assert.ok(src.includes(`'${name}'`), name);
+  for (const colour of ['#38bdf8', '#a78bfa', '#f43f5e', '#fb923c', '#34d399']) assert.ok(src.includes(colour), `the layer colour ${colour}`);
+  assert.match(src, /export const WEAPONS = \{ laser/, 'the weapons'); assert.match(src, /export const MAX_WEAPON_LEVEL = 4/); assert.match(src, /export const TOKENS_PER_LEVEL = 8/); assert.match(src, /export function fireSpec/); assert.match(src, /function steerMissile/, 'homing missiles'); assert.match(src, /pierce/, 'the piercing rail');
+  assert.match(render, /function cube\(/, 'the boxes are drawn as cubes'); assert.match(render, /token: \['#facc15'/, 'Think Tokens can be drawn (a missing entry once froze the screen)'); assert.match(render, /WEAPON_STYLE/, 'weapon crates can be drawn');
+  assert.match(main, /Digit\[1-4\]/, 'number keys switch weapon'); assert.match(main, /cycleWeapon/, 'Q and E cycle'); assert.ok(html.includes('data-weapon'), 'a weapon button for touch screens');
+});

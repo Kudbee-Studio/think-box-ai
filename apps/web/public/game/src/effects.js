@@ -18,7 +18,9 @@ export function createEffects({ reducedMotion = false } = {}) {
       if (e.type === 'wave') fx.banner = { text: `WAVE ${e.wave}`, sub: e.wave > 1 && e.wave % 5 === 0 ? 'BOSS INCOMING' : '', life: 2 };
       if (e.type === 'boss') fx.banner = { text: 'BOSS', sub: '', life: 1.6 };
       if (e.type === 'boss-down') fx.banner = { text: 'BOSS DOWN', sub: '', life: 2 };
-      if (e.type === 'pickup') fx.popups.push({ x: e.x, y: e.y - 12, text: e.kind === 'life' ? '+1 LIFE' : e.kind.toUpperCase(), life: 0.9, size: 14 });
+      if (e.type === 'pickup' && e.kind !== 'token') fx.popups.push({ x: e.x, y: e.y - 12, text: e.kind === 'life' ? '+1 LIFE' : e.kind === 'weapon' ? (e.weapon ?? 'WEAPON').toUpperCase() : e.kind === 'rapid' ? 'OVERCLOCK' : e.kind.toUpperCase(), life: 0.9, size: 14 });
+      if (e.type === 'weapon') fx.banner = { text: String(e.weapon).toUpperCase(), sub: `LEVEL ${e.level}`, life: 1.1 };
+      if (e.type === 'weapon-up') fx.banner = { text: e.max ? 'MAX LEVEL +500' : 'WEAPON UP!', sub: e.max ? '' : `${String(e.weapon).toUpperCase()} LEVEL ${e.level}`, life: 1.3 };
       if (e.type === 'combo' && e.combo % 5 === 0) fx.popups.push({ x: 240, y: 560, text: `COMBO x${e.multiplier}`, life: 0.9, size: 18 });
     },
     update(dt) {
