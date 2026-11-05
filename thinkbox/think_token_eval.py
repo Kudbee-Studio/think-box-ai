@@ -946,9 +946,60 @@ def write_artifact(stats: dict[str, Any], path: str | Path = DEFAULT_ARTIFACTS /
     return path
 
 
+def run_dry_run() -> int:
+    """Print every prompt the live trial would send, without network access.
+
+    Uses the hermetic provider to build the exact prompts (token loading, goal
+    set, and context-block construction are unchanged), then replays them
+    through ThinkTokenLiveAdapter in dry-run mode, which prints each request
+    payload and returns a sentinel. No socket is opened; the live trial flag is
+    not required.
+
+    Also prints the expected hermetic statistics so the dry-run output is
+    self-describing: a reader can see what the live run would be measuring
+    against.
+    """
+    from thinkbox.live_adapter import ThinkTokenLiveAdapter
+
+    tokens = load_accepted_tokens()
+    goals = held_out_goals()
+    adapter = ThinkTokenLiveAdapter(dry_run=True)
+
+    print("=== Think Token trial — DRY RUN (no network) ===", file=sys.stderr)
+    print(f"tokens loaded: {len(tokens)}", file=sys.stderr)
+    for t in tokens:
+        print(f"  - {t.token_id} ({t.source})", file=sys.stderr)
+    print(f"goals: {len(goals)}", file=sys.stderr)
+
+    for goal in goals:
+        block = token_context_block(tokens)
+        for arm in ("without_tokens", "with_tokens"):
+            prompt_parts = [goal["goal"]]
+            if arm == "with_tokens" and block:
+                prompt_parts.append(block)
+            prompt = "\n\n".join(prompt_parts)
+            print(f"\n--- goal {goal['goal_id']} arm={arm} ---", file=sys.stderr)
+            adapter.complete(prompt)
+
+    stats = run_evaluation()
+    control = run_control_evaluation()
+    print("\n=== Expected hermetic statistics (live run measures against these) ===")
+    print(json.dumps({
+        "hermetic_verdict": stats["verdict"],
+        "hermetic_delta_rate": stats["delta_rate"],
+        "hermetic_fisher_p": stats["fisher_exact_one_sided_p"],
+        "control_verdict": control["verdict"],
+        "control_delta_rate": control["delta_rate"],
+        "n": stats["n"],
+    }, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     write_docs = "--write-docs" in argv
+    if "--dry-run" in argv:
+        return run_dry_run()
     stats = run_evaluation()
     control = run_control_evaluation()
     print(json.dumps({"verdict": stats["verdict"], "control_verdict": control["verdict"],

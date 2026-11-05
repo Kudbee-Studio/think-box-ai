@@ -64,7 +64,6 @@ Same harness, but the provider ignores the token context block in BOTH arms. If 
 The accepted Think Token context block measurably changed the emitted artifact, and the objective, machine-checkable verifier is sensitive to that change (with-tokens arm passed all held-out goals; without-tokens arm passed none; Fisher exact one-sided p < 0.05).
 
 **SCOPE LIMIT — READ THIS:** this harness uses a SCRIPTED hermetic provider, not a real model. The provider is wired to emit a parameterized-query artifact when the token context block is present and a naive f-string artifact when it is absent. Therefore this result proves that (a) the token injection mechanism reaches the artifact-generation path, and (b) the objective verifier can distinguish the two artifacts. It does NOT prove that a real model would produce better outputs because of the tokens. That question requires a real model and is out of scope for this hermetic harness.
-
 ## Commands
 
 ```bash
@@ -76,9 +75,26 @@ python3 -m unittest tests.unit.test_think_token_eval -v
 
 # Full suite (regression gate):
 python3 -m unittest discover tests/
+
+# Live-adapter dry-run: print every prompt the live trial would send,
+# with expected hermetic statistics, WITHOUT any network call.
+# No authorization needed; the env flag is not required.
+python3 -m thinkbox.think_token_eval --dry-run
+
+# Standalone adapter dry-run for one prompt:
+python3 -m thinkbox.live_adapter --dry-run "build a rest endpoint with pydantic and parameterized search"
+
+# Adapter refuses when the live-trial flag is absent (exit 2):
+python3 -m thinkbox.live_adapter "hello"
 ```
 
-**Final test count:** 27 tests in `tests/unit/test_think_token_eval.py`; 2701 OK across the full suite (8 skipped, 3 expected failures).
+**Live trial status:** NOT AUTHORIZED. The adapter (`thinkbox/live_adapter.py`)
+is gated behind `THINKBOX_LIVE_TRIAL_ACK=1`, which is a local toggle, not
+authorization. See `docs/evidence/think_token_live_plan.md` §4.1 and §9.
+
+**Final test count:** 37 tests across `tests/unit/test_think_token_eval.py` (27)
+and `tests/unit/test_live_adapter.py` (10); 2711 OK across the full suite
+(8 skipped, 3 expected failures).
 
 ## Honesty Notes
 

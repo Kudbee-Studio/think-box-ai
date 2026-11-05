@@ -56,6 +56,46 @@ scale as the hermetic verdict.
   writer, anti-claim guard) is untouched.
 - Loopback only. No public endpoints, no `:8000`/`:8001` exposure.
 
+## 4.1 Live adapter (built — NOT AUTHORIZED)
+
+A thin adapter matching the harness `complete(prompt)` contract now exists at
+`thinkbox/live_adapter.py` (`ThinkTokenLiveAdapter`). It wraps the existing
+OpenAI-compatible POST path to `{base_url}/chat/completions` and is the only
+module in the repo that can reach the network for this trial.
+
+The adapter is **off by default**. It refuses every call unless
+`THINKBOX_LIVE_TRIAL_ACK=1` is set in the environment. Setting the flag is a
+local toggle, not authorization — the governance token and founder approval in
+section 9 are still required before any live call is made.
+
+### Dry-run (no network, no authorization needed)
+
+Dry-run prints the exact request payload and returns a sentinel. It is safe to
+run anywhere and is the recommended way to inspect what a live call would send:
+
+```bash
+# Prints the chat/completions payload for one prompt; opens no socket.
+python3 -m thinkbox.live_adapter --dry-run "build a rest endpoint with pydantic and parameterized search"
+
+# Dry-run with the harness: run the evaluation against the live adapter in
+# dry-run mode to see every prompt the trial would send, without calling the
+# network. (Not yet wired into the harness CLI; use the adapter directly.)
+THINKBOX_LIVE_TRIAL_ACK=1 python3 -m thinkbox.live_adapter --dry-run "heldout goal prompt"
+```
+
+### Direct refusal (no flag, no dry-run)
+
+```bash
+$ python3 -m thinkbox.live_adapter "hello"
+Refusing live call: THINKBOX_LIVE_TRIAL_ACK is not set. The live Think Token trial is NOT AUTHORIZED.
+$ echo $?
+2
+```
+
+Hermetic tests in `tests/unit/test_live_adapter.py` (10 tests) prove the gate:
+the adapter raises `LiveTrialNotAuthorizedError` when the flag is absent, and
+dry-run never opens a socket even when the flag is set.
+
 ## 5. Required environment and governance token
 
 | Variable | Required | Notes |
