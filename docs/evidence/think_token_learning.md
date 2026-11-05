@@ -1,10 +1,16 @@
 # Think Token Learning-Benefit Evidence
 
-**Generated:** 2026-11-05T19:12:59.772335+00:00
+**Generated:** 2026-11-05T19:21:43.680022+00:00
 
 ## Bottom Line (read this first)
 
 This harness is **hermetic** and uses a **scripted provider**, not a real model. It proves the **injection mechanism** (accepted Think Tokens reach the artifact-generation path and can change the emitted artifact) and that the objective verifier is sensitive to that change. It does **NOT** prove that a real model produces better outputs *because* of the tokens. That requires a real model and is out of scope.
+
+## Founder Summary
+
+PROVEN: 1) The accepted Think Tokens are loaded from durable storage and none are synthesized. 2) When the token context block is present, the artifact path can emit a different (parameterized, injection-safe) artifact than when it is absent, and the objective verifier can tell the two apart (5/5 vs 0/5, one-sided Fisher p=0.0040). 3) A negative control where the provider ignores the token block shows no change, so the verifier detects behavioral change rather than the mere presence of extra text.
+
+UNPROVEN: What is NOT proven: whether a real model would produce better outputs because of the tokens. This harness uses a scripted provider, not a real model, so it cannot measure real-model behavior. The verdict (MECHANISM_DEMONSTRATED) describes the injection mechanism, not model learning.
 
 ## Question
 
@@ -62,9 +68,17 @@ The accepted Think Token context block measurably changed the emitted artifact, 
 ## Commands
 
 ```bash
+# Regenerate the evidence doc + artifact (hermetic, no network):
 python3 -m thinkbox.think_token_eval --write-docs docs/evidence/think_token_learning.md
+
+# Run the evaluation harness unit tests:
 python3 -m unittest tests.unit.test_think_token_eval -v
+
+# Full suite (regression gate):
+python3 -m unittest discover tests/
 ```
+
+**Final test count:** 27 tests in `tests/unit/test_think_token_eval.py`; 2701 OK across the full suite (8 skipped, 3 expected failures).
 
 ## Honesty Notes
 
@@ -73,3 +87,4 @@ python3 -m unittest tests.unit.test_think_token_eval -v
 - The verdict describes the measured data, not a claim of model improvement.
 - A p<0.05 threshold is reported but is not treated as proof of benefit.
 - The provider is scripted; real-model behavior is not measured here.
+- `assert_no_live_model_claim()` guards every rendered report and artifact; it raises if the text implies a live/real-model improvement claim.

@@ -18,8 +18,9 @@ improvement on held-out goals (same task family, different instances).
   p = 1.0 — proves the verifier detects behavioral change, not context text.
 - **Evidence:** `docs/evidence/think_token_learning.md`,
   `data/thinkboxmd/artifacts/think_token_learning.json`.
-- **Tests:** `tests/unit/test_think_token_eval.py` — 21 tests.
-- **Full suite:** `python3 -m unittest discover tests/` → **2695 OK**, 8 skipped, 3 expected failures.
+- **Tests:** `tests/unit/test_think_token_eval.py` — **27 tests** (incl. anti-claim guard suite).
+- **Full suite:** `python3 -m unittest discover tests/` → **2701 OK**, 8 skipped, 3 expected failures.
+- **Reproducible from clean checkout:** `python3 -m unittest tests.unit.test_think_token_eval` and `python3 -m pytest tests/unit/test_think_token_eval.py` both pass on a fresh copy of the tree.
 - **Honesty:** the provider is scripted, not a real model. This proves the
   injection mechanism reaches the artifact path and the verifier is sensitive;
   it does **NOT** prove a real model improves because of the tokens. The prior

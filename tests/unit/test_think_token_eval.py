@@ -12,17 +12,58 @@ from thinkbox.think_token_eval import (
     _fisher_exact,
     _LEARNED_ARTIFACT,
     _NAIVE_ARTIFACT,
+    assert_no_live_model_claim,
     build_tool_surface,
     cohens_h,
     evaluate_trials,
+    founder_summary,
     held_out_goals,
     load_accepted_tokens,
+    render_evidence_markdown,
     run_control_evaluation,
     run_evaluation,
     run_trial,
     token_context_block,
     verify_artifact,
 )
+
+
+class TestAntiClaimGuard(unittest.TestCase):
+    """The harness must refuse to claim real-model improvement.
+
+    These tests fail if the evidence language ever implies live-model
+    improvement, which a hermetic scripted-provider harness cannot support.
+    """
+
+    def test_guard_passes_on_hermetic_report(self):
+        stats = run_evaluation()
+        control = run_control_evaluation()
+        # Must not raise: the rendered report is honest.
+        from thinkbox.think_token_eval import render_evidence_markdown
+        render_evidence_markdown(stats, control)
+
+    def test_guard_passes_on_founder_summary(self):
+        stats = run_evaluation()
+        # The founder summary must be guard-clean.
+        assert_no_live_model_claim(founder_summary(stats))
+
+    def test_guard_fires_on_affirmative_model_claim(self):
+        with self.assertRaises(AssertionError):
+            assert_no_live_model_claim("The real model improved because of the tokens.")
+
+    def test_guard_fires_on_live_proof_claim(self):
+        with self.assertRaises(AssertionError):
+            assert_no_live_model_claim("This is a live proof that tokens help.")
+
+    def test_guard_allows_negated_mentions(self):
+        # Honest negated mentions must NOT trip the guard.
+        assert_no_live_model_claim(
+            "This harness uses a scripted provider, not a real model. "
+            "No live Mercury was used. The learning benefit was UNPROVEN."
+        )
+
+    def test_guard_allows_mechanism_verdict(self):
+        assert_no_live_model_claim("Verdict: MECHANISM_DEMONSTRATED (injection path).")
 
 
 class TestFisherExact(unittest.TestCase):
