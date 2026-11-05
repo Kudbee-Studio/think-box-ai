@@ -1,8 +1,10 @@
 """Thin live adapter for the Think Token trial.
 
-Wraps the existing OpenAI-compatible completion path (Mercury 2 at
-api.inceptionlabs.ai) behind a single complete(prompt) method that matches the
-harness provider interface in thinkbox/think_token_eval.py.
+Wraps any OpenAI-compatible /chat/completions endpoint behind a single
+complete(prompt) method that matches the harness provider interface in
+thinkbox/think_token_eval.py. Provider is configurable via environment
+variables (THINKBOX_LIVE_BASE_URL, THINKBOX_LIVE_MODEL, THINKBOX_LIVE_API_KEY);
+the adapter does not depend on any particular provider.
 
 The adapter is OFF BY DEFAULT. It refuses to make any network call unless
 THINKBOX_LIVE_TRIAL_ACK=1 is set in the environment. This is the only gate; no
@@ -45,17 +47,24 @@ class LiveTrialNotAuthorizedError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 def _default_base_url() -> str:
+    # Provider-specific env vars take precedence over the shared
+    # THINKBOX_OPENAI_COMPAT_* ones, so the adapter does not depend on any
+    # particular provider (Mercury, OpenAI, a local vLLM/Ollama, etc.).
     return os.environ.get(
-        "THINKBOX_OPENAI_COMPAT_BASE_URL", "https://api.inceptionlabs.ai/v1"
+        "THINKBOX_LIVE_BASE_URL",
+        os.environ.get("THINKBOX_OPENAI_COMPAT_BASE_URL", "https://api.openai.com/v1"),
     )
 
 
 def _default_model() -> str:
-    return os.environ.get("THINKBOX_DEFAULT_MODEL", "openai/gpt-oss-20b")
+    return os.environ.get(
+        "THINKBOX_LIVE_MODEL",
+        os.environ.get("THINKBOX_DEFAULT_MODEL", "gpt-4o-mini"),
+    )
 
 
 def _default_api_key() -> str:
-    return os.environ.get("THINKBOX_OPENAI_COMPAT_API_KEY", "")
+    return os.environ.get("THINKBOX_LIVE_API_KEY", os.environ.get("THINKBOX_OPENAI_COMPAT_API_KEY", ""))
 
 
 # ---------------------------------------------------------------------------

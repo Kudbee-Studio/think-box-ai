@@ -46,10 +46,11 @@ scale as the hermetic verdict.
 
 ## 4. Provider path
 
-- Provider: `openai_compat` (existing, registry-verified).
-- Model: `mercury-2` via the Inception contract
-  (`INCEPTION_API_KEY` presence-only; base URL and model constants are the
-  documented, proven ones in `experiments/thinkboxmd_research.py::MercuryClient`).
+- Provider: **any OpenAI-compatible `/chat/completions` endpoint** (no provider is
+  hardcoded; the adapter is provider-agnostic). Configured via
+  `THINKBOX_LIVE_BASE_URL` / `THINKBOX_LIVE_MODEL` / `THINKBOX_LIVE_API_KEY`
+  (see §4.2). Mercury is **unavailable** and is not required — the adapter
+  makes no reference to it.
 - No new code paths. The harness's `HermeticAgentProvider` is swapped for a
   thin live adapter that calls the same `complete(prompt)` contract; the rest
   of the harness (token loading, goal set, verifier, statistics, evidence
@@ -59,16 +60,48 @@ scale as the hermetic verdict.
 ## 4.1 Live adapter (built — NOT AUTHORIZED)
 
 A thin adapter matching the harness `complete(prompt)` contract now exists at
-`thinkbox/live_adapter.py` (`ThinkTokenLiveAdapter`). It wraps the existing
-OpenAI-compatible POST path to `{base_url}/chat/completions` and is the only
-module in the repo that can reach the network for this trial.
+`thinkbox/live_adapter.py` (`ThinkTokenLiveAdapter`). It wraps any
+OpenAI-compatible `/chat/completions` endpoint and is the only module in the
+repo that can reach the network for this trial.
+
+### 4.2 Provider configuration (no Mercury dependency)
+
+The adapter is **provider-agnostic**. It does not depend on Mercury (or any
+other specific provider). Configure the provider with environment variables:
+
+| Variable | Required for live | Default | Notes |
+|----------|-------------------|---------|-------|
+| `THINKBOX_LIVE_BASE_URL` | Yes (live) | `https://api.openai.com/v1` | Base URL, trailing slash stripped |
+| `THINKBOX_LIVE_MODEL` | Yes (live) | `gpt-4o-mini` | Model id sent in the request |
+| `THINKBOX_LIVE_API_KEY` | Yes (live) | `THINKBOX_OPENAI_COMPAT_API_KEY` | Bearer token; never printed |
+
+`THINKBOX_LIVE_*` takes precedence over the shared `THINKBOX_OPENAI_COMPAT_*`
+variables, so the adapter can point at any OpenAI-compatible endpoint without
+code changes.
+
+**Working OpenAI-compatible alternative (documented, not executed):** the
+standard OpenAI endpoint above is the documented default and is known to
+accept the OpenAI request shape this adapter emits. A local alternative is any
+vLLM or Ollama server at `http://127.0.0.1:8000/v1` (loopback only — never
+expose publicly), which accepts the identical `/chat/completions` payload.
+Mercury (`api.inceptionlabs.ai`) is **unavailable** and is not required; the
+adapter makes no reference to it.
+
+### 4.3 Gate
 
 The adapter is **off by default**. It refuses every call unless
 `THINKBOX_LIVE_TRIAL_ACK=1` is set in the environment. Setting the flag is a
 local toggle, not authorization — the governance token and founder approval in
 section 9 are still required before any live call is made.
 
-### Dry-run (no network, no authorization needed)
+**The gate is independent of provider config.** Setting `THINKBOX_LIVE_BASE_URL`,
+`THINKBOX_LIVE_MODEL`, or `THINKBOX_LIVE_API_KEY` does **not** enable live
+calls. With the flag absent the adapter raises `LiveTrialNotAuthorizedError`
+and opens no socket, even when all three provider vars are set. Hermetic tests
+in `tests/unit/test_live_adapter.py` (`TestProviderConfigDoesNotBypassGate`)
+prove this.
+
+### 4.4 Dry-run (no network, no authorization needed)
 
 Dry-run prints the exact request payload and returns a sentinel. It is safe to
 run anywhere and is the recommended way to inspect what a live call would send:
@@ -77,38 +110,60 @@ run anywhere and is the recommended way to inspect what a live call would send:
 # Prints the chat/completions payload for one prompt; opens no socket.
 python3 -m thinkbox.live_adapter --dry-run "build a rest endpoint with pydantic and parameterized search"
 
-# Dry-run with the harness: run the evaluation against the live adapter in
-# dry-run mode to see every prompt the trial would send, without calling the
-# network. (Not yet wired into the harness CLI; use the adapter directly.)
-THINKBOX_LIVE_TRIAL_ACK=1 python3 -m thinkbox.live_adapter --dry-run "heldout goal prompt"
+# With provider config set, dry-run reflects the configured provider:
+THINKBOX_LIVE_BASE_URL="http://127.0.0.1:8000/v1" \
+THINKBOX_LIVE_MODEL="llama-3.1-8b" \
+python3 -m thinkbox.live_adapter --dry-run "heldout goal prompt"
+
+# Harness dry-run: replays every prompt the trial would send (5 goals x 2 arms)
+# and prints the expected hermetic statistics. No network, no flag required.
+python3 -m thinkbox.think_token_eval --dry-run
 ```
 
-### Direct refusal (no flag, no dry-run)
+### 4.5 Direct refusal (no flag, no dry-run)
 
 ```bash
 $ python3 -m thinkbox.live_adapter "hello"
 Refusing live call: THINKBOX_LIVE_TRIAL_ACK is not set. The live Think Token trial is NOT AUTHORIZED.
 $ echo $?
 2
+
+# Provider vars set but flag still absent — same refusal, no socket:
+$ THINKBOX_LIVE_API_KEY="sk-fake" python3 -m thinkbox.live_adapter "hello"
+Refusing live call: THINKBOX_LIVE_TRIAL_ACK is not set. The live Think Token trial is NOT AUTHORIZED.
+$ echo $?
+2
 ```
 
-Hermetic tests in `tests/unit/test_live_adapter.py` (10 tests) prove the gate:
-the adapter raises `LiveTrialNotAuthorizedError` when the flag is absent, and
-dry-run never opens a socket even when the flag is set.
+Hermetic tests in `tests/unit/test_live_adapter.py` (14 tests) prove the gate:
+the adapter raises `LiveTrialNotAuthorizedError` when the flag is absent (even
+with provider env vars set), accepts `1`/`yes`/`true` only, and dry-run never
+opens a socket even when the flag is set.
 
 ## 5. Required environment and governance token
 
+The adapter (`thinkbox/live_adapter.py`) is configured by these variables.
+Mercury is **unavailable** and is not required — any OpenAI-compatible endpoint
+works (see §4.2).
+
 | Variable | Required | Notes |
 |----------|----------|-------|
-| `INCEPTION_API_KEY` | **Yes** | Presence-only check; the live adapter never prints it. |
+| `THINKBOX_LIVE_TRIAL_ACK` | **Yes** | The only gate that enables live calls. Must be `1`/`yes`/`true`. Absent → adapter refuses with exit 2, no socket. |
+| `THINKBOX_LIVE_BASE_URL` | **Yes** (live) | Provider base URL; default `https://api.openai.com/v1`. |
+| `THINKBOX_LIVE_MODEL` | **Yes** (live) | Model id; default `gpt-4o-mini`. |
+| `THINKBOX_LIVE_API_KEY` | **Yes** (live) | Bearer token; the adapter never prints it. Falls back to `THINKBOX_OPENAI_COMPAT_API_KEY`. |
 | `THINKBOX_GOVERNANCE_SIGNING_KEY` | **Yes** | Used by `GovernanceTokenService` to issue/verify the gate token. |
-| `THINKBOX_SWARM_LIVE_ACK` | **Yes** | Founder acknowledgment flag; the gate refuses to start without it. |
 | `THINKBOX_LIVE_BUDGET_CALLS` | No (default 12) | Hard cap on model calls. |
 | `THINKBOX_LIVE_BUDGET_USD` | No (default 2.00) | Hard cap on spend. |
 
 Governance token: a founder-issued `GovernanceToken` (HMAC-signed, TTL-bound,
 revocable) granting the `kilo:live_burst` capability to the trial agent, bound
 to this plan's experiment id. The gate is **fail-closed**: no token, no start.
+
+**Note on `THINKBOX_LIVE_TRIAL_ACK` vs `THINKBOX_SWARM_LIVE_ACK`:** the adapter
+gate is `THINKBOX_LIVE_TRIAL_ACK`. `THINKBOX_SWARM_LIVE_ACK` is the separate
+founder-acknowledgment flag referenced in the broader swarm live protocol; both
+are required before any live call, and neither alone is sufficient.
 
 ## 6. Pass / fail criteria (same statistics as the hermetic harness)
 
@@ -168,9 +223,13 @@ the prompt context.
 
 This plan makes **no** live calls. To execute it, a founder must:
 
-1. Set the env vars in section 5.
+1. Set the adapter env vars in section 5 (`THINKBOX_LIVE_TRIAL_ACK`,
+   `THINKBOX_LIVE_BASE_URL`, `THINKBOX_LIVE_MODEL`, `THINKBOX_LIVE_API_KEY`).
 2. Issue a governance token granting `kilo:live_burst` for this experiment id.
 3. Set `THINKBOX_SWARM_LIVE_ACK`.
 4. Run the gated trial.
 
 Until all four happen, the live trial is **NOT AUTHORIZED** and must not run.
+Setting `THINKBOX_LIVE_TRIAL_ACK=1` alone is a local toggle, not authorization;
+it only lets the adapter *attempt* a call, and the call still requires the
+governance token and founder approval.

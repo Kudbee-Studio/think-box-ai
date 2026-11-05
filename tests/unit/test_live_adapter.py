@@ -104,5 +104,75 @@ class TestLivePathRequiresKey(unittest.TestCase):
                 adapter.complete("hello")
 
 
+class TestProviderConfigDoesNotBypassGate(unittest.TestCase):
+    """Provider env vars configure WHERE the adapter calls, not WHETHER it may.
+
+    The ACK gate is the only authorization path. Setting provider env vars
+    (base URL, model, API key) must not cause a live call to proceed when the
+    flag is absent.
+    """
+
+    def test_provider_env_vars_set_but_ack_missing_still_refuses(self) -> None:
+        env = {
+            "THINKBOX_LIVE_BASE_URL": "http://127.0.0.1:9999",
+            "THINKBOX_LIVE_MODEL": "some-model",
+            "THINKBOX_LIVE_API_KEY": "sk-fake-but-real-looking-key",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop("THINKBOX_LIVE_TRIAL_ACK", None)
+            self.assertFalse(live_trial_authorized())
+            adapter = ThinkTokenLiveAdapter()
+            # Provider config is read, but the gate still blocks the call.
+            self.assertEqual(adapter._base_url, "http://127.0.0.1:9999")
+            self.assertEqual(adapter._model, "some-model")
+            self.assertEqual(adapter._api_key, "sk-fake-but-real-looking-key")
+            with mock.patch("urllib.request.urlopen") as m:
+                with self.assertRaises(LiveTrialNotAuthorizedError):
+                    adapter.complete("hello")
+            self.assertFalse(m.called, "must not open a socket when ACK is absent")
+
+    def test_provider_env_vars_precedence(self) -> None:
+        # THINKBOX_LIVE_* takes precedence over THINKBOX_OPENAI_COMPAT_*.
+        env = {
+            "THINKBOX_LIVE_BASE_URL": "http://live.example/v1",
+            "THINKBOX_OPENAI_COMPAT_BASE_URL": "http://compat.example/v1",
+            "THINKBOX_LIVE_MODEL": "live-model",
+            "THINKBOX_DEFAULT_MODEL": "default-model",
+            "THINKBOX_LIVE_API_KEY": "live-key",
+            "THINKBOX_OPENAI_COMPAT_API_KEY": "compat-key",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            adapter = ThinkTokenLiveAdapter()
+            self.assertEqual(adapter._base_url, "http://live.example/v1")
+            self.assertEqual(adapter._model, "live-model")
+            self.assertEqual(adapter._api_key, "live-key")
+
+    def test_falls_back_to_compat_vars(self) -> None:
+        env = {
+            "THINKBOX_OPENAI_COMPAT_BASE_URL": "http://compat.example/v1",
+            "THINKBOX_DEFAULT_MODEL": "default-model",
+            "THINKBOX_OPENAI_COMPAT_API_KEY": "compat-key",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            adapter = ThinkTokenLiveAdapter()
+            self.assertEqual(adapter._base_url, "http://compat.example/v1")
+            self.assertEqual(adapter._model, "default-model")
+            self.assertEqual(adapter._api_key, "compat-key")
+
+    def test_default_provider_is_openai_not_mercury(self) -> None:
+        # The adapter must not depend on Mercury. With no provider env vars set,
+        # the default points at the generic OpenAI-compatible endpoint.
+        with mock.patch.dict(os.environ, {}, clear=False):
+            for k in (
+                "THINKBOX_LIVE_BASE_URL", "THINKBOX_OPENAI_COMPAT_BASE_URL",
+                "THINKBOX_LIVE_MODEL", "THINKBOX_DEFAULT_MODEL",
+                "THINKBOX_LIVE_API_KEY", "THINKBOX_OPENAI_COMPAT_API_KEY",
+            ):
+                os.environ.pop(k, None)
+            adapter = ThinkTokenLiveAdapter()
+            self.assertIn("openai.com", adapter._base_url)
+            self.assertNotIn("inceptionlabs", adapter._base_url)
+
+
 if __name__ == "__main__":
     unittest.main()
