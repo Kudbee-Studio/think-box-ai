@@ -90,7 +90,10 @@ python3 -m thinkbox.live_adapter "hello"
 
 **Live trial status:** NOT AUTHORIZED. The adapter (`thinkbox/live_adapter.py`)
 is gated behind `THINKBOX_LIVE_TRIAL_ACK=1`, which is a local toggle, not
-authorization. See `docs/evidence/think_token_live_plan.md` §4.1 and §9.
+authorization. The adapter is provider-agnostic (configured by
+`THINKBOX_LIVE_BASE_URL` / `THINKBOX_LIVE_MODEL` / `THINKBOX_LIVE_API_KEY`);
+Mercury is unavailable and not required. See `docs/evidence/think_token_live_plan.md`
+§4.1–§4.5 and §9.
 
 **Final test count:** 37 tests across `tests/unit/test_think_token_eval.py` (27)
 and `tests/unit/test_live_adapter.py` (10); 2711 OK across the full suite
