@@ -1,0 +1,299 @@
+{
+  "cohens_h": 3.1416,
+  "contingency_table": [
+    [
+      5,
+      0
+    ],
+    [
+      0,
+      5
+    ]
+  ],
+  "control": {
+    "cohens_h": 0.0,
+    "contingency_table": [
+      [
+        0,
+        5
+      ],
+      [
+        0,
+        5
+      ]
+    ],
+    "delta_rate": 0.0,
+    "fisher_exact_one_sided_p": 1.0,
+    "goals": [
+      "heldout_001_inventory_api",
+      "heldout_002_order_api",
+      "heldout_003_product_api",
+      "heldout_004_shipment_api",
+      "heldout_005_invoice_api"
+    ],
+    "mean_paired_delta": 0.0,
+    "mode": "control_neutral_provider",
+    "n": 5,
+    "paired_deltas": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "tokens_loaded": [
+      {
+        "content_preview": "Task task_001_rest_endpoint: Create a REST endpoint that accepts JSON items, validates schema, stores to SQLite, and ret",
+        "source": "/workspace/app/learned.db",
+        "token_id": "org:pattern:1"
+      },
+      {
+        "content_preview": "Task task_002_user_api: Create a REST endpoint for user registration with validation, storage, and search",
+        "source": "/workspace/app/learned.db",
+        "token_id": "org:pattern:2"
+      }
+    ],
+    "tokens_reused_count": 5,
+    "trials": [
+      {
+        "arm": "with_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": true,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_001_inventory_api:with_tokens"
+      },
+      {
+        "arm": "with_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": true,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_002_order_api:with_tokens"
+      },
+      {
+        "arm": "with_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": true,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_003_product_api:with_tokens"
+      },
+      {
+        "arm": "with_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": true,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_004_shipment_api:with_tokens"
+      },
+      {
+        "arm": "with_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": true,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_005_invoice_api:with_tokens"
+      },
+      {
+        "arm": "without_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": false,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_001_inventory_api:without_tokens"
+      },
+      {
+        "arm": "without_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": false,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_002_order_api:without_tokens"
+      },
+      {
+        "arm": "without_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": false,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_003_product_api:without_tokens"
+      },
+      {
+        "arm": "without_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": false,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_004_shipment_api:without_tokens"
+      },
+      {
+        "arm": "without_tokens",
+        "error": null,
+        "model_calls": 1,
+        "reused_token": false,
+        "success": false,
+        "tool_calls": 1,
+        "trial_id": "heldout_005_invoice_api:without_tokens"
+      }
+    ],
+    "verdict": "NO_MEASURABLE_IMPROVEMENT",
+    "with_tokens": {
+      "model_calls_mean": 1,
+      "rate": 0.0,
+      "success": 0,
+      "tool_calls_mean": 1
+    },
+    "without_tokens": {
+      "model_calls_mean": 1,
+      "rate": 0.0,
+      "success": 0,
+      "tool_calls_mean": 1
+    }
+  },
+  "delta_rate": 1.0,
+  "fisher_exact_one_sided_p": 0.003968,
+  "goals": [
+    "heldout_001_inventory_api",
+    "heldout_002_order_api",
+    "heldout_003_product_api",
+    "heldout_004_shipment_api",
+    "heldout_005_invoice_api"
+  ],
+  "mean_paired_delta": 1.0,
+  "n": 5,
+  "paired_deltas": [
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "tokens_loaded": [
+    {
+      "content_preview": "Task task_001_rest_endpoint: Create a REST endpoint that accepts JSON items, validates schema, stores to SQLite, and ret",
+      "source": "/workspace/app/learned.db",
+      "token_id": "org:pattern:1"
+    },
+    {
+      "content_preview": "Task task_002_user_api: Create a REST endpoint for user registration with validation, storage, and search",
+      "source": "/workspace/app/learned.db",
+      "token_id": "org:pattern:2"
+    }
+  ],
+  "tokens_reused_count": 5,
+  "trials": [
+    {
+      "arm": "with_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": true,
+      "success": true,
+      "tool_calls": 1,
+      "trial_id": "heldout_001_inventory_api:with_tokens"
+    },
+    {
+      "arm": "with_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": true,
+      "success": true,
+      "tool_calls": 1,
+      "trial_id": "heldout_002_order_api:with_tokens"
+    },
+    {
+      "arm": "with_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": true,
+      "success": true,
+      "tool_calls": 1,
+      "trial_id": "heldout_003_product_api:with_tokens"
+    },
+    {
+      "arm": "with_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": true,
+      "success": true,
+      "tool_calls": 1,
+      "trial_id": "heldout_004_shipment_api:with_tokens"
+    },
+    {
+      "arm": "with_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": true,
+      "success": true,
+      "tool_calls": 1,
+      "trial_id": "heldout_005_invoice_api:with_tokens"
+    },
+    {
+      "arm": "without_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": false,
+      "success": false,
+      "tool_calls": 1,
+      "trial_id": "heldout_001_inventory_api:without_tokens"
+    },
+    {
+      "arm": "without_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": false,
+      "success": false,
+      "tool_calls": 1,
+      "trial_id": "heldout_002_order_api:without_tokens"
+    },
+    {
+      "arm": "without_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": false,
+      "success": false,
+      "tool_calls": 1,
+      "trial_id": "heldout_003_product_api:without_tokens"
+    },
+    {
+      "arm": "without_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": false,
+      "success": false,
+      "tool_calls": 1,
+      "trial_id": "heldout_004_shipment_api:without_tokens"
+    },
+    {
+      "arm": "without_tokens",
+      "error": null,
+      "model_calls": 1,
+      "reused_token": false,
+      "success": false,
+      "tool_calls": 1,
+      "trial_id": "heldout_005_invoice_api:without_tokens"
+    }
+  ],
+  "verdict": "MECHANISM_DEMONSTRATED",
+  "with_tokens": {
+    "model_calls_mean": 1,
+    "rate": 1.0,
+    "success": 5,
+    "tool_calls_mean": 1
+  },
+  "without_tokens": {
+    "model_calls_mean": 1,
+    "rate": 0.0,
+    "success": 0,
+    "tool_calls_mean": 1
+  }
+}

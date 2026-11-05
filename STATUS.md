@@ -1,3 +1,33 @@
+## PR #126 — Think Token learning-benefit evidence (hermetic)
+
+**Date:** 2026-11-05
+**Task:** ASKED — prove or disprove that accepted Think Tokens produce measurable
+improvement on held-out goals (same task family, different instances).
+**Outcome:** MECHANISM_DEMONSTRATED (injection path) — **learning benefit still UNPROVEN**.
+
+- **Harness:** `thinkbox/think_token_eval.py` — hermetic paired-trial evaluation
+  with a scripted provider, an objective machine-checkable verifier, and a
+  one-sided Fisher exact test.
+- **Accepted tokens loaded:** `org:pattern:1`, `org:pattern:2` from `learned.db`
+  (REST API + SQL-injection trap family). No tokens synthesized.
+- **Held-out set:** 5 new REST-API instances (`heldout_001`–`heldout_005`), same
+  family, never the training tasks.
+- **Arm A (scripted provider honoring tokens):** 5/5 vs 0/5, delta +1.0,
+  Fisher one-sided p = 0.003968, Cohen's h = 3.14.
+- **Arm B (negative control, neutral provider):** 0/5 vs 0/5, delta 0.0,
+  p = 1.0 — proves the verifier detects behavioral change, not context text.
+- **Evidence:** `docs/evidence/think_token_learning.md`,
+  `data/thinkboxmd/artifacts/think_token_learning.json`.
+- **Tests:** `tests/unit/test_think_token_eval.py` — 21 tests.
+- **Full suite:** `python3 -m unittest discover tests/` → **2695 OK**, 8 skipped, 3 expected failures.
+- **Honesty:** the provider is scripted, not a real model. This proves the
+  injection mechanism reaches the artifact path and the verifier is sensitive;
+  it does **NOT** prove a real model improves because of the tokens. The prior
+  finding (2026-10-06, UNPROVEN / did not replicate) now has machine-checkable
+  evidence behind it. No new governance, no UpCloud, no multi-agent, no dashboard UI.
+
+---
+
 ## PR #125 — Audit ledger (draft)
 
 - **Artifacts:** `docs/audit/` (index, pass `passes/2026-09-22-pr125.json`, checklists, checked areas)
