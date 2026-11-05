@@ -1,6 +1,6 @@
 # Think Token Learning-Benefit Evidence
 
-**Generated:** 2026-11-05T19:21:43.680022+00:00
+**Generated:** 2026-11-05T19:29:44.675857+00:00
 
 ## Bottom Line (read this first)
 
@@ -88,3 +88,16 @@ python3 -m unittest discover tests/
 - A p<0.05 threshold is reported but is not treated as proof of benefit.
 - The provider is scripted; real-model behavior is not measured here.
 - `assert_no_live_model_claim()` guards every rendered report and artifact; it raises if the text implies a live/real-model improvement claim.
+## Live-Provider Trial
+
+A founder-gated plan for running the same measurement with a live provider is
+at `docs/evidence/think_token_live_plan.md`. It reuses the identical held-out
+goals, verifier, paired design, and statistics, so any live numbers are directly
+comparable to the numbers above.
+
+**The live trial is NOT AUTHORIZED.** It requires `INCEPTION_API_KEY`, a
+founder-issued governance token granting `kilo:live_burst`, the
+`THINKBOX_SWARM_LIVE_ACK` acknowledgment flag, and explicit founder approval.
+It makes no live calls until all four are present. The hermetic result above
+stands on its own and does not depend on the live trial. No live provider has
+been used for this evidence; the harness uses a scripted provider only.
